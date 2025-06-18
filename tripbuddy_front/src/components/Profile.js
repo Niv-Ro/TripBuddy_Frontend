@@ -22,22 +22,62 @@ function Profile({ email }) {
     if (!data) return <div>Loading...</div>;
     if (data.error) return <div>{data.error}</div>;
 
+    function getAge(dateString) {
+        const today = new Date();
+        const birthDate = new Date(dateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
+
     return (
-        <div className="card p-4" style={{maxWidth: 500, margin: "auto"}}>
-            <div className="d-flex flex-column align-items-center">
-                <img
-                    src={data.profileImageUrl || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
-                    alt="Profile"
-                    className="rounded-circle mb-3"
-                    width={100}
-                    height={100}
-                />
-                <h2>{data.fullName}</h2>
-                <p className="mb-1">{data.email}</p>
-                {/* More fields if you want */}
-            </div>
+        <div>
+            <nav className="navbar navbar-light  border-bottom px-4 py-2"
+                 style={{minHeight: "36px", width: "100vw"}}>
+                <div className="d-flex align-items-center w-100">
+                    {/* Image */}
+                    <div style={{
+                        width: 200,
+                        height: 200,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                    }}>
+                        <img
+                            src={data.profileImageUrl || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                            alt="Profile"
+                            width={200}
+                            height={200}
+                            style={{objectFit: "cover"}}
+                        />
+                    </div>
+                    {/* Info to the right */}
+                    <div style={{marginLeft: "32px"}}>
+                        <h1 className="py-2 mb-1">{data.fullName}</h1>
+                        <h5 className="mb-1">Country: {data.countryOrigin}</h5>
+                        <h5 className="mb-1">Gender: {data.gender}</h5>
+                        <h5 className="mb-0">Age: {getAge(data.birthDate)}</h5>
+                    </div>
+                    <div style={{marginLeft: "32px"}}>
+                        <h4>About me</h4>
+                    </div>
+                </div>
+            </nav>
+            <nav className="navbar navbar-light border-bottom px-4 py-2"
+                 style={{minHeight: "36px", width: "100vw"}}>
+                <div
+                    className="d-flex align-items-center w-100" style={{
+                        overflowX: "auto",
+                        whiteSpace: "nowrap"
+                    }}>
+                    {/* Your wide content here */}
+                </div>
+            </nav>
         </div>
-    );
+    )
+        ;
 }
 
 export default Profile;

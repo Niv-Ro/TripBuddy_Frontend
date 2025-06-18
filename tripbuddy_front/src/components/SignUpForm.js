@@ -37,13 +37,21 @@ const SignUpForm = ({ onSubmit }) => {
                 {/* ... כל שדות הטופס נשארים ללא שינוי ... */}
                 <div className="text-center mb-3">
                     <label htmlFor="profileImage" style={{cursor: 'pointer'}}>
-                        <img
-                            src={profileImagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
-                            alt="Profile"
-                            className="rounded-circle"
-                            width="80"
-                            height="80"
-                        />
+                        <div style={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: "50%",
+                            overflow: "hidden",
+                            display: "inline-block",
+                        }}>
+                            <img
+                                src={profileImagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                                alt="Profile"
+                                width={80}
+                                height={80}
+                                style={{objectFit: "cover"}}
+                            />
+                        </div>
                     </label>
                     <input
                         type="file"
@@ -132,8 +140,8 @@ const SignUpForm = ({ onSubmit }) => {
                         required
                     >
                         <option value="">Select your gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
                     </select>
                 </div>
 

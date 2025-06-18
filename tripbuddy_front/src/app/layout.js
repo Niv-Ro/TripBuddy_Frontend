@@ -1,6 +1,12 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {AuthProvider} from "@/context/AuthContext";
+import {Heebo} from "next/font/google"
+
+const heebo = Heebo({
+    subsets:["latin","hebrew"],
+    weight: ["300", "400", "500", "700"]
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +27,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${heebo.className} antialiased`}
       >
         <AuthProvider>{children}</AuthProvider>
       </body>
