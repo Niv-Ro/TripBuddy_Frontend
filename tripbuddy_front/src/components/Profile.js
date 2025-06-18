@@ -1,21 +1,22 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import {useAuth} from "@/context/AuthContext";
 
 function Profile({ email }) {
     const [data, setData] = useState(null);
-    console.log("email prop:", email);
+    const {user} = useAuth();
 
     useEffect(() => {
-        if (!user || !user.email) return; // <- wait until user and email are available
+        if (!user.email) return; // <- wait until user and email are available
         axios.get(`http://localhost:5000/api/users/${user.email}`)
             .then(res => setData(res.data))
             .catch(err => {
                 console.error(err);
                 setData({ error: "User not found" });
             });
-    }, [email]);
+    }, []);
 
-    if (!user || !user.email) return <div>Loading user...</div>;
+    if (!user.email) return <div>Loading user...</div>;
     if (!data) return <div>Loading...</div>;
     if (data.error) return <div>{data.error}</div>;
 
