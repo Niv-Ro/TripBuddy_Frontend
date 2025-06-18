@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [user]);
 
     // הערכים שכל האפליקציה תוכל לגשת אליהם
     const value = {

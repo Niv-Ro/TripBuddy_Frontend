@@ -16,7 +16,9 @@ function Profile({ email }) {
             });
     }, []);
 
-    if (!user.email) return <div>Loading user...</div>;
+    if(user) {
+        if (!user.email) return <div>Loading user...</div>;
+    }
     if (!data) return <div>Loading...</div>;
     if (data.error) return <div>{data.error}</div>;
 
