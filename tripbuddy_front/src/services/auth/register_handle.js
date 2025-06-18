@@ -1,4 +1,4 @@
-import { auth } from '../components/FireBase.js';
+import { auth } from '@/services/fireBase.js';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import axios from 'axios';
 
@@ -9,10 +9,25 @@ export async function handleRegister(formValues) {
         return;
     }
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
+        await createUserWithEmailAndPassword(auth, email, password)
         await handleDataSave({ fullName, birthDate, countryOrigin, gender });
+
     }catch (err){
-        console.log(err)
+        switch (err.code) {
+            case 'auth/email-already-in-use':
+                alert("The email selected is already in use");
+                break;
+            case 'auth/weak-password':
+                alert("Passwords should be at least 6 characters");
+                break;
+            case 'auth/invalid-email':
+                alert("Please enter a valid email format")
+                break;
+            case 'auth/network-request-failed':
+                alert("Network error");
+                break;
+        }
+
     }
 
 }

@@ -1,20 +1,21 @@
-// File: components/MainScreen.js
+// File: components/page.js
 "use client";
 import React, { useState } from "react";
-import { handleSignOut } from "../services/SignOut_handle.js";
-import Profile from "./Profile.js";
-import MapView from "./MapView.js";
-import Chats from "./Chats.js";
-import Feed from "./Feed.js";
-import {useNavigate} from "react-router-dom";
+import { handleSignOut } from "@/services/auth/SignOut_handle.js";
+import Profile from "../../components/Profile.js";
+import MapView from "../../components/MapView.js";
+import Chats from "../../components/Chats.js";
+import Feed from "../../components/Feed.js";
+import {useRouter} from "next/navigation";
 
-function MainScreen({ user }) {
+function Page({ user }) {
     const [view, setView] = useState('feed');
-    const navigate = useNavigate();
+    //const navigate = useNavigate();
+
 
     const onSignOut = async () => {
         await handleSignOut();
-        navigate('/Dashboard');
+        //navigate('/Dashboard');
     };
 
     // decide which component to render
@@ -43,7 +44,7 @@ function MainScreen({ user }) {
                 {/* Top: Logo, User, and Navigation Buttons */}
                 <div>
                     <h2 className="mb-1">Travel Buddy</h2>
-                    <span className="text-muted">{user.email}</span>
+                    {/*<span className="text-muted">{user.email}</span>*/}
                     <div className="mt-3 d-flex flex-column">
                         <button
                             className="btn btn-outline-primary mb-2 text-start"
@@ -88,4 +89,4 @@ function MainScreen({ user }) {
     );
 }
 
-export default MainScreen;
+export default Page;

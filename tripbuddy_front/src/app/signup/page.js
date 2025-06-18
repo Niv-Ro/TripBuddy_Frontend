@@ -1,9 +1,9 @@
 "use client"
 import React from 'react';
-import SignUpForm from './SignUpForm.js';
-import { handleRegister } from '../Services/register_handle.js';
+import SignUpForm from '../../components/SignUpForm.js';
+import { handleRegister } from '@/services/auth/register_handle.js';
 
-const SignUp = () => (
+const Page = () => (
     <div className="container vh-50 d-flex justify-content-center align-items-center">
         <div style={{minWidth: '400px'}}>
             <h3 className="text-center fs-6">Travel Buddy</h3>
@@ -13,4 +13,4 @@ const SignUp = () => (
     </div>
 );
 
-export default SignUp;
+export default Page;

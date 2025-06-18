@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../hooks/useCountries.js';
-import {useNavigation,useNavigate} from "react-router-dom";
+import Link from 'next/link'; // 1. מייבאים את Link, אין צורך ב-useRouter כאן
 
 const SignUpForm = ({ onSubmit }) => {
-    const navigate = useNavigate();
     const [profileImage, setProfileImage] = useState(null);
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
@@ -24,12 +23,14 @@ const SignUpForm = ({ onSubmit }) => {
 
     const handleSubmit = e => {
         e.preventDefault();
+        // הלוגיקה של שליחת הטופס נשארת זהה. הקומפוננטה לא מנווטת בעצמה.
         onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender });
     };
 
     return (
-        <div className = "text-center">
+        <div className="text-center">
             <form onSubmit={handleSubmit}>
+                {/* ... כל שדות הטופס נשארים ללא שינוי ... */}
                 <div className="text-center mb-3">
                     <label htmlFor="profileImage" style={{cursor: 'pointer'}}>
                         <img
@@ -119,7 +120,7 @@ const SignUpForm = ({ onSubmit }) => {
                     </select>
                 </div>
 
-                <div className="mb-6">
+                <div className="mb-3"> {/* תיקנתי מ-mb-6 ל-mb-3 בשביל עקביות */}
                     <select
                         className="form-select"
                         value={gender}
@@ -134,7 +135,11 @@ const SignUpForm = ({ onSubmit }) => {
 
                 <button type="submit" className="btn btn-primary w-100 mb-3">Register</button>
             </form>
-            <button className="btn btn-secondary" onClick={() => navigate('/Dashboard')}>Sign In</button>
+
+            {/* 3. המרת הכפתור ל-Link */}
+            <Link href="/" className="btn btn-secondary">
+                Sign In
+            </Link>
         </div>
     );
 };

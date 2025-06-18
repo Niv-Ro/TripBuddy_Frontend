@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import SignIn from './SignIn';
-import MainScreen from './MainScreen';
+import Page from '../app/mainscreen/page';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './FireBase';
+import { auth } from '@/services/fireBase';
 import { useNavigate } from 'react-router-dom';
+import SignIn from "@/app/page";
 
 function Dashboard() {
     const [user, setUser] = useState(null);
@@ -22,7 +22,7 @@ function Dashboard() {
     }
 
     // logged in:
-    return <MainScreen user={user} />;
+    return <Page user={user} />;
 }
 
 export default Dashboard;

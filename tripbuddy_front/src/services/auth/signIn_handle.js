@@ -1,4 +1,4 @@
-import { auth } from '../components/FireBase.js';
+import { auth } from '@/services/fireBase.js';
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from 'firebase/auth';
 
 
