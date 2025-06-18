@@ -66,102 +66,115 @@ function Profile() {
     // --- JSX Rendering ---
     return (
         <div>
-            {/* Section 1: Original Profile Info */}
-            <nav className="navbar navbar-light border-bottom px-4 py-2">
+            <nav className="navbar navbar-light  border-bottom py-2"
+                 style={{minHeight: "36px"}}>
                 <div className="d-flex align-items-center w-100">
-                    <div style={{width: 200, height: 200, borderRadius: "50%", overflow: "hidden"}}>
+                    {/* Image */}
+                    <div style={{
+                        width: 200,
+                        height: 200,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                    }}>
                         <img
-                            src={data.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                            src={data.profileImageUrl || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                             alt="Profile"
-                            style={{width: '100%', height: '100%', objectFit: "cover"}}
+                            width={200}
+                            height={200}
+                            style={{objectFit: "cover"}}
                         />
                     </div>
-                    <div className="ms-4">
+                    {/* Info to the right */}
+                    <div style={{marginLeft: "32px"}}>
                         <h1 className="py-2 mb-1">{data.fullName}</h1>
                         <h5 className="mb-1">Country: {data.countryOrigin}</h5>
                         <h5 className="mb-1">Gender: {data.gender}</h5>
                         <h5 className="mb-0">Age: {getAge(data.birthDate)}</h5>
                     </div>
-                    <div className="ms-4">
+                    <div style={{marginLeft: "32px"}}>
                         <h4>About me</h4>
+
                     </div>
                 </div>
             </nav>
-
             <nav className="navbar navbar-light border-bottom px-4 py-2"
                  style={{minHeight: "36px"}}>
-                {/* Section 2: Visited Countries Scroller */}
-                <div className="countries-section px-4 pt-3">
-                    <h5>Countries Visited</h5>
-                    <div className="scroll-container">
-                        {/* Add Button */}
-                        <div className="country-item-wrapper" onClick={() => setIsAdding(true)}>
-                            <div className="add-circle">
-                                <span>+</span>
-                            </div>
-                            <p className="country-caption" style={{fontWeight: 'normal', color: '#65676b'}}>Add</p>
-                        </div>
+                <div className="d-flex align-items-center w-100" style={{
+                    overflowX: "auto",
+                    whiteSpace: "nowrap"
+                }}>
 
-                        {/* Render the list of selected countries */}
-                        {selectedCountries.map(country => (
-                            <div key={country.code} className="country-item-wrapper">
-                                <button
-                                    className="remove-btn"
-                                    onClick={() => handleRemoveCountry(country.code)}
-                                >
-                                    &times;
-                                </button>
-                                <div className="country-circle">
-                                    <img src={country.flag} alt={country.name} className="country-flag"/>
+                    {/* Section 2: Visited Countries Scroller */}
+                    <div className="countries-section px-4 pt-3">
+                        <h5>Countries Visited</h5>
+                        <div className="scroll-container">
+                            {/* Add Button */}
+                            <div className="country-item-wrapper" onClick={() => setIsAdding(true)}>
+                                <div className="add-circle">
+                                    <span>+</span>
                                 </div>
-                                <p className="country-caption">{country.name}</p>
+                                <p className="country-caption" style={{fontWeight: 'normal', color: '#65676b'}}>Add</p>
                             </div>
-                        ))}
-                    </div>
-                </div>
 
-                {/* Section 3: Search UI (Conditionally Rendered) */}
-                {isAdding && (
-                    <div className="search-section px-4 py-3">
-                        <h6>Add a country to your list</h6>
-                        <div className="input-group">
-                            <input
-                                type="text"
-                                className="form-control"
-                                placeholder="Search for a country..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                autoFocus
-                            />
-                            <button className="btn btn-outline-secondary" type="button"
-                                    onClick={() => setIsAdding(false)}>Cancel
-                            </button>
+                            {/* Render the list of selected countries */}
+                            {selectedCountries.map(country => (
+                                <div key={country.code} className="country-item-wrapper">
+                                    <button
+                                        className="remove-btn"
+                                        onClick={() => handleRemoveCountry(country.code)}
+                                    >
+                                        &times;
+                                    </button>
+                                    <div className="country-circle">
+                                        <img src={country.flag} alt={country.name} className="country-flag" />
+                                    </div>
+                                    <p className="country-caption">{country.name}</p>
+                                </div>
+                            ))}
                         </div>
-
-                        {searchQuery && (
-                            <div className="search-results">
-                                {filteredCountries.length > 0 ? (
-                                    filteredCountries.slice(0, 5).map(country => ( // Show top 5 results
-                                        <div
-                                            key={country.code}
-                                            className="result-item"
-                                            onClick={() => handleAddCountry(country)}
-                                        >
-                                            <img src={country.flag} alt={country.name} width="30" className="me-2"/>
-                                            {country.name}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="result-item text-muted">No matching countries found.</div>
-                                )}
-                            </div>
-                        )}
                     </div>
-                )}
-            </nav>
 
+                    {/* Section 3: Search UI (Conditionally Rendered) */}
+                    {isAdding && (
+                        <div className="search-section px-4 py-3">
+                            <h6>Add a country to your list</h6>
+                            <div className="input-group">
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Search for a country..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    autoFocus
+                                />
+                                <button className="btn btn-outline-secondary" type="button" onClick={() => setIsAdding(false)}>Cancel</button>
+                            </div>
+
+                            {searchQuery && (
+                                <div className="search-results">
+                                    {filteredCountries.length > 0 ? (
+                                        filteredCountries.slice(0, 5).map(country => ( // Show top 5 results
+                                            <div
+                                                key={country.code}
+                                                className="result-item"
+                                                onClick={() => handleAddCountry(country)}
+                                            >
+                                                <img src={country.flag} alt={country.name} width="30" className="me-2" />
+                                                {country.name}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="result-item text-muted">No matching countries found.</div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        )}
+
+                </div>
+            </nav>
         </div>
-);
+    );
 }
 
 export default Profile;
