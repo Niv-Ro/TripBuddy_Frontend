@@ -1,16 +1,31 @@
 import { auth } from '@/services/fireBase.js';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import axios from 'axios';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export async function handleRegister(formValues) {
-    const { email, password, confirmPassword, fullName, birthDate, countryOrigin, gender } = formValues;
+    const { email, password, confirmPassword, fullName, birthDate, countryOrigin, gender, profileImage } = formValues;
     if (confirmPassword !== password) {
         alert("Passwords don't match");
         return;
     }
     try {
-        await createUserWithEmailAndPassword(auth, email, password)
-        await handleDataSave({ fullName, birthDate, countryOrigin, gender });
+        await createUserWithEmailAndPassword(auth, email, password);
+
+        let profileImageUrl = '';
+        if (profileImage) {
+            // 1. Create a storage reference
+            const imageRef = ref(storage, `profileImages/${email}_${Date.now()}`);
+
+            // 2. Upload file
+            await uploadBytes(imageRef, profileImage);
+
+            // 3. Get download URL
+            profileImageUrl = await getDownloadURL(imageRef);
+        }
+
+        // 4. Save all data (including profileImageUrl) to MongoDB
+        await handleDataSave({ fullName, birthDate, countryOrigin, gender, profileImageUrl });
 
     }catch (err){
         switch (err.code) {

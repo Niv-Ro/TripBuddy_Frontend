@@ -17,14 +17,13 @@ const SignUpForm = ({ onSubmit }) => {
 
     const handleImageChange = e => {
         if (e.target.files && e.target.files[0]) {
-            setProfileImage(URL.createObjectURL(e.target.files[0]));
+            setProfileImage(e.target.files[0]); // Keep the file, not URL
         }
     };
 
     const handleSubmit = e => {
         e.preventDefault();
-        // הלוגיקה של שליחת הטופס נשארת זהה. הקומפוננטה לא מנווטת בעצמה.
-        onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender });
+        onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
     };
 
     return (
