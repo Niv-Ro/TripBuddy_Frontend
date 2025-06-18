@@ -1,6 +1,5 @@
 import { auth } from '../components/FireBase.js';
 import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from 'firebase/auth';
-import {handleDataSave} from "@/app/Services/register";
 
 
 export async function handleSignIn(formValues) {

@@ -1,31 +1,16 @@
 "use client"
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { useSignUp } from './Hooks/useSignUp';
-import SignUpForm from './Components/SignUpForm';
+import React from 'react';
+import SignUpForm from './SignUpForm.js';
+import { handleRegister } from '../Services/register_handle.js';
 
-const SignUp = () => {
-    const {
-        formData,
-        profileImage,
-        countries,
-        handleInputChange,
-        handleImageChange,
-        registerUser
-    } = useSignUp();
-
-    return (
-        <div className="container vh-50 d-flex justify-content-center align-items-center">
-            <SignUpForm
-                formData={formData}
-                profileImage={profileImage}
-                countries={countries}
-                isLoading={isLoading}
-                onInputChange={handleInputChange}
-                onImageChange={handleImageChange}
-                onSubmit={registerUser}
-            />
+const SignUp = () => (
+    <div className="container vh-50 d-flex justify-content-center align-items-center">
+        <div style={{minWidth: '400px'}}>
+            <h3 className="text-center fs-6">Travel Buddy</h3>
+            <h2 className="text-center mb-3">Register</h2>
+            <SignUpForm onSubmit={handleRegister}/>
         </div>
-    );
-};
+    </div>
+);
 
 export default SignUp;
