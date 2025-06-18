@@ -1,21 +1,20 @@
 // File: components/page.js
 "use client";
-import React, { useState } from "react";
+import React, {useEffect, useState} from "react";
 import { handleSignOut } from "@/services/auth/SignOut_handle.js";
 import Profile from "../../components/Profile.js";
 import MapView from "../../components/MapView.js";
 import Chats from "../../components/Chats.js";
 import Feed from "../../components/Feed.js";
-import {useRouter} from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
-function Page({ user }) {
+function Page() {
     const [view, setView] = useState('feed');
-    //const navigate = useNavigate();
-
+    const searchParams = useSearchParams();
+    const email = searchParams.get('email');
 
     const onSignOut = async () => {
         await handleSignOut();
-        //navigate('/Dashboard');
     };
 
     // decide which component to render
@@ -31,7 +30,7 @@ function Page({ user }) {
             Content = <Chats />;
             break;
         case 'profile':
-            Content = <Profile user={user} />;
+            Content = <Profile email={email} />;
             break;
         default:
             Content = <div><p>Select an option.</p></div>;
@@ -48,7 +47,7 @@ function Page({ user }) {
                             {/* Top: Logo, User, and Navigation Buttons */}
                             <div>
                                 <h2 className="mb-1">Travel Buddy</h2>
-                                {/*<span className="text-muted">{user.email}</span>*/}
+                                {/*<span className="text-muted">{user?.email || ""}</span>*/}
                                 <div className="mt-3 d-flex flex-column">
                                     <button
                                         className="btn btn-outline-primary mb-2 text-start"

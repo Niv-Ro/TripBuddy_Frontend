@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../hooks/useCountries.js';
 import Link from 'next/link'; // 1. מייבאים את Link, אין צורך ב-useRouter כאן
+import { useRouter } from 'next/navigation'; // 1. ייבוא של useRouter מ-Next.js
 
 const SignUpForm = ({ onSubmit }) => {
+    const router = useRouter(); // 3. שימוש ב-Hook של Next.js
     const [profileImage, setProfileImage] = useState(null);
+    const [profileImagePreview, setProfileImagePreview] = useState(""); // the preview
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -18,12 +21,14 @@ const SignUpForm = ({ onSubmit }) => {
     const handleImageChange = e => {
         if (e.target.files && e.target.files[0]) {
             setProfileImage(e.target.files[0]); // Keep the file, not URL
+            setProfileImagePreview(URL.createObjectURL(e.target.files[0])); // For UI preview
         }
     };
 
-    const handleSubmit = e => {
+    const handleSubmit = async e => {
         e.preventDefault();
-        onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
+        await onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
+        router.push('/');
     };
 
     return (
@@ -33,7 +38,7 @@ const SignUpForm = ({ onSubmit }) => {
                 <div className="text-center mb-3">
                     <label htmlFor="profileImage" style={{cursor: 'pointer'}}>
                         <img
-                            src={profileImage || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                            src={profileImagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                             alt="Profile"
                             className="rounded-circle"
                             width="80"
