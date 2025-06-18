@@ -78,12 +78,10 @@ function Page() {
             </nav>
 
             {/* Main Content */}
-            <div className="flex-grow-1 overflow-auto ">
+            <div className="flex-grow-1 overflow-auto">
                 {Content}
             </div>
         </div>
-
-
     );
 }
 
