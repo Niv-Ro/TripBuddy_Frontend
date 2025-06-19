@@ -99,10 +99,10 @@ function Profile() {
             </nav>
             <nav className="navbar navbar-light border-bottom px-4 py-2"
                  style={{minHeight: "36px"}}>
+
                 <div className="d-flex align-items-center w-100" style={{
                     overflowX: "auto",
-                    whiteSpace: "nowrap"
-                }}>
+                    whiteSpace: "nowrap"}}>
 
                     {/* Section 2: Visited Countries Scroller */}
                     <div className="countries-section px-4 pt-3">
@@ -133,6 +133,8 @@ function Profile() {
                             ))}
                         </div>
                     </div>
+                </div>
+                <div>
 
                     {/* Section 3: Search UI (Conditionally Rendered) */}
                     {isAdding && (
@@ -169,8 +171,7 @@ function Profile() {
                                 </div>
                             )}
                         </div>
-                        )}
-
+                    )}
                 </div>
             </nav>
         </div>
