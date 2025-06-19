@@ -3,6 +3,12 @@ import React, {useState} from "react";
 import {ComposableMap, Geographies, Geography, ZoomableGroup} from "react-simple-maps";
 import { Tooltip } from "react-tooltip"
 
+
+//common fields
+//countries api ccn3
+//map api id
+
+
 const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json"
 
 function MapView() {
@@ -109,8 +115,6 @@ function MapView() {
                         border: '1px solid #ddd',
                         borderRadius: '4px',
                         padding: '8px 12px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -126,8 +130,6 @@ function MapView() {
                         border: '1px solid #ddd',
                         borderRadius: '4px',
                         padding: '8px 12px',
-                        cursor: 'pointer',
-                        fontSize: '16px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

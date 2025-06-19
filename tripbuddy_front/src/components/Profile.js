@@ -148,8 +148,10 @@ export default function Profile() {
             {/* Section 1: Main Profile Header (RESTORED AND COMPLETE)             */}
             {/* ==================================================================== */}
             <nav className="navbar navbar-light border-bottom py-3 px-4">
-                <div className="d-flex align-items-center w-100">
-                    <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+                <div className="d-flex align-items-center items-center  w-100 ">
+                    <div className="shadow-2xl border-1 border-opacity-10"
+                         style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
+                    >
                         <img
                             src={data.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                             alt="Profile"
