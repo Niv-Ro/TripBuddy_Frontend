@@ -14,9 +14,9 @@
     min-height: 95px;
 }
 
-/* Hide scrollbar */
-.scroll-container::-webkit-scrollbar { display: none; }
-.scroll-container { -ms-overflow-style: none; scrollbar-width: none; }
+/*!* Hide scrollbar *!*/
+/*.scroll-container::-webkit-scrollbar { display: none; }*/
+/*.scroll-container { -ms-overflow-style: none; scrollbar-width: none; }*/
 
 
 /* --- Wrapper for each country item (circle + caption) --- */
@@ -115,11 +115,11 @@
 }
 
 
-/*!* --- Search Results Styles --- *!*/
-/*.search-section {*/
-/*    border-top: 1px solid #eee;*/
-/*    margin-top: 1rem;*/
-/*}*/
+/* --- Search Results Styles --- */
+.search-section {
+    border-top: 1px solid #eee;
+    margin-top: 1rem;
+}
 
 .search-results {
     border: 1px solid #ddd;

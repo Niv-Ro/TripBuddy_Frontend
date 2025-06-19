@@ -6,16 +6,19 @@ export default function useCountries() {
     useEffect(() => {
         async function fetchCountries() {
             try {
-                const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,flags');
+                // 🔥 FIX 1: Add 'cca3' to the fields we are fetching from the API
+                const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,cca3,flags');
                 const data = await res.json();
+
                 const list = data
                     .map(c => ({
                         name: c.name.common,
-                        code: c.cca2, // קוד המדינה, למשל 'IL'
-                        flag: c.flags.svg // כתובת ה-URL של הדגל
+                        code: c.cca2,      // 2-letter code (e.g., 'IL')
+                        code3: c.cca3,     // 🔥 FIX 2: Add the 3-letter code to our object
+                        flag: c.flags.svg
                     }))
-                    .filter(Boolean)
-                    .sort((a, b) => a.name.localeCompare(b)); // ממיין לפי שם המדינה
+                    .filter(c => c.code3) // Ensure the country has a 3-letter code
+                    .sort((a, b) => a.name.localeCompare(b));
 
                 setCountries(list);
             } catch (e) {

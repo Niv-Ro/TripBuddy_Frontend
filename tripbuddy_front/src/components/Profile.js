@@ -5,55 +5,59 @@ import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries.js";
 
-// Import helper components
-import CountryList from "@/components/CountryList";
-import CountrySearch from "@/components/CountrySearch";
+// Import helper components and styles
+import CountryList from "./CountryList";
+import CountrySearch from "./CountrySearch";
+import '../styles/ProfileAdditions.css';
 
-// Import styles
-import '@/styles/ProfileAdditions.css';
+// A simple Skeleton component for a better loading experience
+const ProfileSkeleton = () => (
+    <div className="p-4 opacity-50" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
+        <div className="navbar navbar-light border-bottom py-3 px-4">
+            <div className="d-flex align-items-center w-100">
+                <div style={{ width: 200, height: 200, borderRadius: "50%", backgroundColor: '#e0e0e0' }} />
+                <div className="ms-4">
+                    <div style={{ width: 250, height: 36, backgroundColor: '#e0e0e0', borderRadius: '4px', marginBottom: '0.75rem' }} />
+                    <div style={{ width: 150, height: 20, backgroundColor: '#e0e0e0', borderRadius: '4px', marginBottom: '0.5rem' }} />
+                    <div style={{ width: 120, height: 20, backgroundColor: '#e0e0e0', borderRadius: '4px' }} />
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
-// It's good practice to have a skeleton component for a better loading experience
-const ProfileSkeleton = () => <div className="p-4">Loading profile...</div>;
 
-function Profile() {
+export default function Profile() {
     // --- State and Hooks ---
-    const [data, setData] = useState(null); // For user data from Mongo
-    const { user } = useAuth(); // For user auth state from Firebase
-    const allCountries = useCountries(); // Full list of countries from API
+    const [data, setData] = useState(null);
+    const { user } = useAuth();
+    const allCountries = useCountries();
 
-    // State for the two separate country lists
     const [visitedCountries, setVisitedCountries] = useState([]);
     const [wishlistCountries, setWishlistCountries] = useState([]);
 
-    // State to manage which list is currently being edited ('visited' or 'wishlist')
-    const [addingToList, setAddingToList] = useState(null);
+    const [addingToList, setAddingToList] = useState(null); // Determines which list to add to: 'visited' | 'wishlist'
+    const [searchQuery, setSearchQuery] = useState('');
 
-    // State to fix Hydration issues
     const [isClient, setIsClient] = useState(false);
-
-    // Ref to prevent saving lists to DB on the initial component load
     const initialLoad = useRef(true);
 
     // --- Side Effects ---
 
-    // Effect 1: Fetch initial profile data when component mounts or user changes
+    // Effect 1: Fetches initial profile data and populates the country lists from the DB
     useEffect(() => {
-        // Guard clause: Don't run if we don't have the user or the full country list yet
-        if (!user?.email || allCountries.length === 0) {
-            return;
-        }
+        if (!user?.email || allCountries.length === 0) return;
 
         axios.get(`http://localhost:5000/api/users/${user.email}`)
             .then(res => {
                 const userData = res.data;
                 setData(userData);
 
-                // Initialize lists from the data that came from the DB
-                if (userData.visitedCountries) {
+                if (userData?.visitedCountries) {
                     const initialVisited = allCountries.filter(c => userData.visitedCountries.includes(c.code3));
                     setVisitedCountries(initialVisited);
                 }
-                if (userData.wishlistCountries) {
+                if (userData?.wishlistCountries) {
                     const initialWishlist = allCountries.filter(c => userData.wishlistCountries.includes(c.code3));
                     setWishlistCountries(initialWishlist);
                 }
@@ -63,49 +67,50 @@ function Profile() {
                 setData({ error: "User not found" });
             })
             .finally(() => {
-                // Allow saving to DB only after the initial data has been loaded
                 initialLoad.current = false;
             });
     }, [user, allCountries]);
 
-    // Effect 2: Save lists to DB automatically whenever they change
+    // Effect 2: Automatically saves the lists to the DB whenever they change
     useEffect(() => {
-        // Don't save on the very first render cycle
-        if (initialLoad.current || !user?.email) {
-            return;
-        }
+        if (initialLoad.current || !user?.email) return;
 
-        // Prepare the data (arrays of 3-letter codes) to send to the backend
         const visitedCodes = visitedCountries.map(c => c.code3);
         const wishlistCodes = wishlistCountries.map(c => c.code3);
+
+        console.log('SAVING TO DB:', { visited: visitedCodes, wishlist: wishlistCodes }); // For debugging
 
         axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
             visited: visitedCodes,
             wishlist: wishlistCodes
         })
-            .then(res => console.log('User lists saved successfully.'))
-            .catch(err => console.error('Failed to save user lists:', err));
+            .then(res => console.log('Lists saved successfully!'))
+            .catch(err => console.error('Failed to save lists:', err));
 
-    }, [visitedCountries, wishlistCountries, user]); // This effect depends on these states
+    }, [visitedCountries, wishlistCountries, user]);
 
-    // Effect 3: Fix Hydration errors for client-side only values like age
+    // Effect 3: Solves Hydration errors for client-side calculations
     useEffect(() => {
         setIsClient(true);
     }, []);
 
     // --- Handler Functions ---
-    const addCountry = (country, listType) => {
-        const list = listType === 'visited' ? visitedCountries : wishlistCountries;
-        const setList = listType === 'visited' ? setVisitedCountries : setWishlistCountries;
+    const handleAddCountry = (country) => {
+        if (!addingToList) return;
 
-// Ensure the country isn't in either list already
-        if (!visitedCountries.some(c => c.code === country.code) && !wishlistCountries.some(c => c.code === country.code)) {
-            setList(prev => [...prev, country]);
+        const targetList = addingToList === 'visited' ? visitedCountries : wishlistCountries;
+        const setTargetList = addingToList === 'visited' ? setVisitedCountries : setWishlistCountries;
+
+        // Add country only if it's not already in the target list
+        if (!targetList.some(c => c.code === country.code)) {
+            setTargetList(prev => [...prev, country]);
         }
-        setAddingToList(null); // Close search UI after action
+
+        setAddingToList(null); // Close search UI
+        setSearchQuery('');
     };
 
-    const removeCountry = (countryCode, listType) => {
+    const handleRemoveCountry = (countryCode, listType) => {
         const setList = listType === 'visited' ? setVisitedCountries : setWishlistCountries;
         setList(prev => prev.filter(c => c.code !== countryCode));
     };
@@ -123,6 +128,15 @@ function Profile() {
         return age;
     }
 
+    // Filter countries for search results, excluding only those in the target list
+    const filteredCountries = searchQuery
+        ? allCountries.filter(country => {
+            const targetList = addingToList === 'visited' ? visitedCountries : wishlistCountries;
+            const isInTargetList = targetList.some(sc => sc.code === country.code);
+            return country.name.toLowerCase().includes(searchQuery.toLowerCase()) && !isInTargetList;
+        })
+        : [];
+
     // --- Loading and Error States ---
     if (!data) return <ProfileSkeleton />;
     if (data.error) return <div className="p-4 text-danger">{data.error}</div>;
@@ -130,7 +144,9 @@ function Profile() {
     // --- JSX Rendering ---
     return (
         <div>
-            {/* Section 1: Main Profile Header (Restored) */}
+            {/* ==================================================================== */}
+            {/* Section 1: Main Profile Header (RESTORED AND COMPLETE)             */}
+            {/* ==================================================================== */}
             <nav className="navbar navbar-light border-bottom py-3 px-4">
                 <div className="d-flex align-items-center w-100">
                     <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
@@ -154,37 +170,38 @@ function Profile() {
                 </div>
             </nav>
 
-            {/* Section 2: Reusable Country List Components */}
+            {/* ==================================================================== */}
+            {/* Section 2: Reusable Country List Components                      */}
+            {/* ==================================================================== */}
             <div className="p-4">
                 <CountryList
                     title="Countries I've Visited"
                     countries={visitedCountries}
                     onAddRequest={() => setAddingToList('visited')}
-                    onRemove={(code) => removeCountry(code, 'visited')}
+                    onRemove={(code) => handleRemoveCountry(code, 'visited')}
                 />
 
                 <CountryList
                     title="My Wishlist"
                     countries={wishlistCountries}
                     onAddRequest={() => setAddingToList('wishlist')}
-                    onRemove={(code) => removeCountry(code, 'wishlist')}
+                    onRemove={(code) => handleRemoveCountry(code, 'wishlist')}
                 />
             </div>
 
-            {/* Section 3: Conditionally Rendered Search Component */}
+            {/* ==================================================================== */}
+            {/* Section 3: Conditionally Rendered Search Component                 */}
+            {/* ==================================================================== */}
             {addingToList && (
                 <CountrySearch
                     allCountries={allCountries}
-                    existingCodes={[
-                        ...visitedCountries.map(c => c.code),
-                        ...wishlistCountries.map(c => c.code)
-                    ]}
-                    onSelectCountry={(country) => addCountry(country, addingToList)}
+                    existingCodes={addingToList === 'visited'
+                        ? visitedCountries.map(c => c.code)
+                        : wishlistCountries.map(c => c.code)}
+                    onSelectCountry={handleAddCountry} // The add function now knows which list to use via 'addingToList' state
                     onCancel={() => setAddingToList(null)}
                 />
             )}
         </div>
     );
 }
-
-export default Profile;
