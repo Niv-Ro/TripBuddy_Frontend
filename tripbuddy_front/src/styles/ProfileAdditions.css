@@ -9,9 +9,9 @@
     align-items: flex-start; /* Aligns items to the top */
     overflow-x: auto;
     scroll-behavior: smooth;
-    padding: 10px 0; /* Changed padding to be only top/bottom */
-    gap: 1.5rem; /* Space between items */
-    min-height: 120px;
+    padding: 5px 0; /* Changed padding to be only top/bottom */
+    gap: 1rem; /* Space between items */
+    min-height: 95px;
 }
 
 /* Hide scrollbar */
@@ -25,20 +25,20 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 70px;
+    width: 60px;
     flex-shrink: 0; /* FIX: Prevents items from shrinking and enables scrolling! */
 }
 
 
 /* --- Round Country Image Styles --- */
 .country-circle {
-    width: 70px;
-    height: 70px;
+    width: 45px;
+    height: 45px;
     border-radius: 50%;
-    border: 2px solid #eee;
+    border: 1px solid #eee;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     overflow: hidden;
-    margin-bottom: 8px; /* Space between circle and caption */
+    margin-bottom: 4px; /* Space between circle and caption */
 }
 
 .country-flag {
@@ -92,8 +92,8 @@
 
 /* --- Add Button Styles --- */
 .add-circle {
-    width: 70px;
-    height: 70px;
+    width: 45px;
+    height: 45px;
     display: flex;
     justify-content: center;
     align-items: center;

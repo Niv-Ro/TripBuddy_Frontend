@@ -34,11 +34,11 @@ function Page() {
     }
 
     return (
-        <div className="d-flex" style={{width: '100%', height: '100vh'}}>
+        <div className="d-flex" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
             {/* Sidebar */}
             <nav
                 className="bg-light border-end d-flex flex-column p-3"
-                style={{width: '250px', height: '100%'}}
+                style={{ width: '250px', height: '100vh', flexShrink: 0, overflow: 'hidden' }}
             >
                 <div>
                     <h2 className="mb-1">Travel Buddy</h2>
@@ -78,7 +78,15 @@ function Page() {
             </nav>
 
             {/* Main Content */}
-            <div className="flex-grow-1 overflow-auto">
+            <div
+                className="flex-grow-1"
+                style={{
+                    height: '100vh',
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    background: '#f8f9fa',
+                }}
+            >
                 {Content}
             </div>
         </div>

@@ -1,57 +1,118 @@
 'use client';
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries.js";
-import '../styles/ProfileAdditions.css'; // ייבוא קובץ ה-CSS
+
+// Import helper components
+import CountryList from "@/components/CountryList";
+import CountrySearch from "@/components/CountrySearch";
+
+// Import styles
+import '@/styles/ProfileAdditions.css';
+
+// It's good practice to have a skeleton component for a better loading experience
+const ProfileSkeleton = () => <div className="p-4">Loading profile...</div>;
 
 function Profile() {
     // --- State and Hooks ---
-    const [data, setData] = useState(null);
-    const { user } = useAuth();
-    const allCountries = useCountries();
-    const [selectedCountriesVisited, setSelectedCountriesVisited] = useState([]);
-    const [selectedCountriesToVisit, setSelectedCountriesToVisit] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isAdding, setIsAdding] = useState(false); // State to control search visibility
+    const [data, setData] = useState(null); // For user data from Mongo
+    const { user } = useAuth(); // For user auth state from Firebase
+    const allCountries = useCountries(); // Full list of countries from API
 
-    // --- Data Fetching Logic (Original) ---
+    // State for the two separate country lists
+    const [visitedCountries, setVisitedCountries] = useState([]);
+    const [wishlistCountries, setWishlistCountries] = useState([]);
+
+    // State to manage which list is currently being edited ('visited' or 'wishlist')
+    const [addingToList, setAddingToList] = useState(null);
+
+    // State to fix Hydration issues
+    const [isClient, setIsClient] = useState(false);
+
+    // Ref to prevent saving lists to DB on the initial component load
+    const initialLoad = useRef(true);
+
+    // --- Side Effects ---
+
+    // Effect 1: Fetch initial profile data when component mounts or user changes
     useEffect(() => {
-        if (!user?.email) return;
+        // Guard clause: Don't run if we don't have the user or the full country list yet
+        if (!user?.email || allCountries.length === 0) {
+            return;
+        }
+
         axios.get(`http://localhost:5000/api/users/${user.email}`)
-            .then(res => setData(res.data))
+            .then(res => {
+                const userData = res.data;
+                setData(userData);
+
+                // Initialize lists from the data that came from the DB
+                if (userData.visitedCountries) {
+                    const initialVisited = allCountries.filter(c => userData.visitedCountries.includes(c.code3));
+                    setVisitedCountries(initialVisited);
+                }
+                if (userData.wishlistCountries) {
+                    const initialWishlist = allCountries.filter(c => userData.wishlistCountries.includes(c.code3));
+                    setWishlistCountries(initialWishlist);
+                }
+            })
             .catch(err => {
                 console.error("Failed to fetch user data:", err);
                 setData({ error: "User not found" });
+            })
+            .finally(() => {
+                // Allow saving to DB only after the initial data has been loaded
+                initialLoad.current = false;
             });
-    }, [user]);
+    }, [user, allCountries]);
 
-    // --- Handler Functions for Countries ---
-    const handleAddCountryVisited = (country) => {
-        if (!selectedCountriesVisited.some(sc => sc.code === country.code)) {
-            setSelectedCountriesVisited(prev => [...prev, country]);
+    // Effect 2: Save lists to DB automatically whenever they change
+    useEffect(() => {
+        // Don't save on the very first render cycle
+        if (initialLoad.current || !user?.email) {
+            return;
         }
-        setSearchQuery('');
-        setIsAdding(false); // Close the search UI after adding
-    };
-    const handleAddCountryToVisit = (country) => {
-        if (!selectedCountriesToVisit.some(sc => sc.code === country.code)) {
-            setSelectedCountriesToVisit(prev => [...prev, country]);
+
+        // Prepare the data (arrays of 3-letter codes) to send to the backend
+        const visitedCodes = visitedCountries.map(c => c.code3);
+        const wishlistCodes = wishlistCountries.map(c => c.code3);
+
+        axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
+            visited: visitedCodes,
+            wishlist: wishlistCodes
+        })
+            .then(res => console.log('User lists saved successfully.'))
+            .catch(err => console.error('Failed to save user lists:', err));
+
+    }, [visitedCountries, wishlistCountries, user]); // This effect depends on these states
+
+    // Effect 3: Fix Hydration errors for client-side only values like age
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // --- Handler Functions ---
+    const addCountry = (country, listType) => {
+        const list = listType === 'visited' ? visitedCountries : wishlistCountries;
+        const setList = listType === 'visited' ? setVisitedCountries : setWishlistCountries;
+
+// Ensure the country isn't in either list already
+        if (!visitedCountries.some(c => c.code === country.code) && !wishlistCountries.some(c => c.code === country.code)) {
+            setList(prev => [...prev, country]);
         }
-        setSearchQuery('');
-        setIsAdding(false); // Close the search UI after adding
+        setAddingToList(null); // Close search UI after action
     };
 
-    const handleRemoveCountryVisited = (countryCode) => {
-        setSelectedCountriesVisited(prev => prev.filter(c => c.code !== countryCode));
-    };
-    const handleRemoveCountryToVisit = (countryCode) => {
-        setSelectedCountriesToVisit(prev => prev.filter(c => c.code !== countryCode));
+    const removeCountry = (countryCode, listType) => {
+        const setList = listType === 'visited' ? setVisitedCountries : setWishlistCountries;
+        setList(prev => prev.filter(c => c.code !== countryCode));
     };
 
     // --- Helper Functions ---
     function getAge(dateString) {
+        if (!dateString) return '';
         const today = new Date();
         const birthDate = new Date(dateString);
         let age = today.getFullYear() - birthDate.getFullYear();
@@ -62,216 +123,66 @@ function Profile() {
         return age;
     }
 
-    const filteredCountriesVisited = searchQuery
-        ? allCountries.filter(country =>
-            country.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !selectedCountriesVisited.some(sc => sc.code === country.code)
-        )
-        : [];
-
-    // const filteredCountriesToVisit = searchQuery
-    //     ? allCountries.filter(country =>
-    //         country.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-    //         !selectedCountriesToVisit.some(sc => sc.code === country.code)
-    //     )
-    //     : [];
-
     // --- Loading and Error States ---
-    if (!user) return <div className="p-4">Loading user authentication...</div>;
-    if (!data) return <div className="p-4">Loading profile data...</div>;
+    if (!data) return <ProfileSkeleton />;
     if (data.error) return <div className="p-4 text-danger">{data.error}</div>;
 
     // --- JSX Rendering ---
     return (
         <div>
-            <nav className="navbar navbar-light border-bottom py-2 px-4"
-                 style={{minHeight: "36px"}}>
+            {/* Section 1: Main Profile Header (Restored) */}
+            <nav className="navbar navbar-light border-bottom py-3 px-4">
                 <div className="d-flex align-items-center w-100">
-                    {/* Image */}
-                    <div style={{
-                        width: 200,
-                        height: 200,
-                        borderRadius: "50%",
-                        overflow: "hidden",
-                    }}>
+                    <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
                         <img
-                            src={data.profileImageUrl || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                            src={data.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                             alt="Profile"
-                            width={200}
-                            height={200}
-                            style={{objectFit: "cover"}}
+                            style={{ width: '100%', height: '100%', objectFit: "cover" }}
                         />
                     </div>
-                    {/* Info to the right */}
-                    <div style={{marginLeft: "32px"}}>
+                    <div className="ms-4">
                         <h1 className="py-2 mb-1">{data.fullName}</h1>
                         <h5 className="mb-1">Country: {data.countryOrigin}</h5>
                         <h5 className="mb-1">Gender: {data.gender}</h5>
-                        <h5 className="mb-0">Age: {getAge(data.birthDate)}</h5>
+                        <h5 className="mb-0">
+                            Age: {isClient ? getAge(data.birthDate) : '...'}
+                        </h5>
                     </div>
-                    <div style={{marginLeft: "32px"}}>
+                    <div className="ms-4">
                         <h4>About me</h4>
-
                     </div>
                 </div>
             </nav>
 
+            {/* Section 2: Reusable Country List Components */}
+            <div className="p-4">
+                <CountryList
+                    title="Countries I've Visited"
+                    countries={visitedCountries}
+                    onAddRequest={() => setAddingToList('visited')}
+                    onRemove={(code) => removeCountry(code, 'visited')}
+                />
 
-            <nav className="navbar navbar-light border-bottom px-4 py-2"
-                 style={{minHeight: "36px"}}>
+                <CountryList
+                    title="My Wishlist"
+                    countries={wishlistCountries}
+                    onAddRequest={() => setAddingToList('wishlist')}
+                    onRemove={(code) => removeCountry(code, 'wishlist')}
+                />
+            </div>
 
-                <div className="d-flex align-items-center w-100" style={{
-                    overflowX: "auto",
-                    whiteSpace: "nowrap"
-                }}>
-
-                    {/* Section 2: Visited Countries Scroller */}
-                    <div className=" px-2 pt-1">
-                        <h5>Countries Visited</h5>
-                        <div className="scroll-container">
-                            <div className="country-item-wrapper " onClick={() => setIsAdding(true)}>
-                                <div className="add-circle">
-                                    <span>+</span>
-                                </div>
-                                <p className="country-caption" style={{fontWeight: 'normal', color: '#65676b'}}>Add</p>
-                            </div>
-
-                            {/* Render the list of selected countries */}
-                            {selectedCountriesVisited.map(country => (
-                                <div key={country.code} className="country-item-wrapper">
-                                    <button
-                                        className="remove-btn"
-                                        onClick={() => handleRemoveCountryVisited(country.code)}
-                                    >
-                                        &times;
-                                    </button>
-                                    <div className="country-circle">
-                                        <img src={country.flag} alt={country.name} className="country-flag"/>
-                                    </div>
-                                    <p className="country-caption">{country.name}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div>
-
-                    {/* Section 3: Search UI (Conditionally Rendered) */}
-                    {isAdding && (
-                        <div className="search-section px-2 pt-1">
-                            <h6>Add a country to your list</h6>
-                            <div className="input-group">
-                                <input type="text" className="form-control" placeholder="Search for a country..."
-                                       value={searchQuery}
-                                       onChange={e => setSearchQuery(e.target.value)}
-                                       autoFocus
-                                />
-                                <button className="btn btn-outline-secondary" type="button"
-                                        onClick={() => setIsAdding(false)}>Cancel
-                                </button>
-                            </div>
-
-                            {searchQuery && (
-                                <div className="search-results">
-                                    {filteredCountriesVisited.length > 0 ? (
-                                        filteredCountriesVisited.slice(0, 5).map(country => ( // Show top 5 results
-                                            <div
-                                                key={country.code}
-                                                className="result-item"
-                                                onClick={() => handleAddCountryVisited(country)}
-                                            >
-                                                <img src={country.flag} alt={country.name} width="30" className="me-2"/>
-                                                {country.name}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="result-item text-muted">No matching countries found.</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </nav>
-
-
-
-            <nav className="navbar navbar-light border-bottom px-4 py-2"
-                 style={{minHeight: "36px"}}>
-
-                <div className="d-flex align-items-center w-100" style={{
-                    overflowX: "auto",
-                    whiteSpace: "nowrap"
-                }}>
-
-                    {/* Section 2: Visited Countries Scroller */}
-                    <div className=" px-2 pt-1">
-                        <h5>I Want To Explore</h5>
-                        <div className="scroll-container">
-                            <div className="country-item-wrapper " onClick={() => setIsAdding(true)}>
-                                <div className="add-circle">
-                                    <span>+</span>
-                                </div>
-                                <p className="country-caption" style={{fontWeight: 'normal', color: '#65676b'}}>Add</p>
-                            </div>
-
-                            {/* Render the list of selected countries */}
-                            {selectedCountriesToVisit.map(country => (
-                                <div key={country.code} className="country-item-wrapper">
-                                    <button
-                                        className="remove-btn"
-                                        onClick={() => handleRemoveCountryToVisit(country.code)}
-                                    >
-                                        &times;
-                                    </button>
-                                    <div className="country-circle">
-                                        <img src={country.flag} alt={country.name} className="country-flag"/>
-                                    </div>
-                                    <p className="country-caption">{country.name}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div>
-
-                    {/* Section 3: Search UI (Conditionally Rendered) */}
-                    {isAdding && (
-                        <div className="search-section px-2 pt-1">
-                            <h6>Add a country to your list</h6>
-                            <div className="input-group">
-                                <input type="text" className="form-control" placeholder="Search for a country..."
-                                       value={searchQuery}
-                                       onChange={e => setSearchQuery(e.target.value)}
-                                       autoFocus
-                                />
-                                <button className="btn btn-outline-secondary" type="button"
-                                        onClick={() => setIsAdding(false)}>Cancel
-                                </button>
-                            </div>
-
-                            {searchQuery && (
-                                <div className="search-results">
-                                    {filteredCountriesVisited.length > 0 ? (
-                                        filteredCountriesVisited.slice(0, 5).map(country => ( // Show top 5 results
-                                            <div
-                                                key={country.code}
-                                                className="result-item"
-                                                onClick={() => handleAddCountryToVisit(country)}
-                                            >
-                                                <img src={country.flag} alt={country.name} width="30" className="me-2"/>
-                                                {country.name}
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="result-item text-muted">No matching countries found.</div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </nav>
+            {/* Section 3: Conditionally Rendered Search Component */}
+            {addingToList && (
+                <CountrySearch
+                    allCountries={allCountries}
+                    existingCodes={[
+                        ...visitedCountries.map(c => c.code),
+                        ...wishlistCountries.map(c => c.code)
+                    ]}
+                    onSelectCountry={(country) => addCountry(country, addingToList)}
+                    onCancel={() => setAddingToList(null)}
+                />
+            )}
         </div>
     );
 }
