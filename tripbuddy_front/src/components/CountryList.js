@@ -16,7 +16,7 @@ function CountryList({ title, countries, onRemove, onAddRequest }) {
 
                 {/* Render the list of countries */}
                 {countries.map(country => (
-                    <div key={country.code} className="country-item-wrapper">
+                    <div key={country.code} className="country-item-wrapper" title={country.name}>
                         <button
                             className="remove-btn"
                             onClick={() => onRemove(country.code)}
@@ -26,7 +26,7 @@ function CountryList({ title, countries, onRemove, onAddRequest }) {
                         <div className="country-circle">
                             <img src={country.flag} alt={country.name} className="country-flag" />
                         </div>
-                        <p className="country-caption">{country.name}</p>
+
                     </div>
                 ))}
             </div>
