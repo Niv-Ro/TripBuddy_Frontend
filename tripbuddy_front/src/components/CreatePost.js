@@ -38,7 +38,8 @@ export default function CreatePost({onPostCreated}) {
                 return uploadBytes(storageRef, file).then(snapshot =>
                     getDownloadURL(snapshot.ref).then(url => ({
                         url: url,
-                        type: file.type // 🔥 שומרים את סוג הקובץ מהקובץ המקורי
+                        type: file.type, // 🔥 שומרים את סוג הקובץ מהקובץ המקורי
+                        path: filePath
                     }))
                 );
             });

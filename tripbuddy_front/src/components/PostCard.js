@@ -4,15 +4,18 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import EditPostModal from './EditPostModal'; // ייבוא המודל
 
 export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete }) {
     // --- State Management ---
     const { user } = useAuth(); // User from Firebase Auth for ownership checks
     const [likes, setLikes] = useState(post?.likes || []);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-
+    const [isEditing, setIsEditing] = useState(false);
     // FIX 1: State variable now correctly named 'fullscreenMedia' to hold the entire media object
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
+    const [comments, setComments] = useState(post.comments || []);
+    const [newComment, setNewComment] = useState('');
 
     // --- Side Effects ---
     // This effect ensures Bootstrap's JavaScript for dropdowns is loaded on the client
@@ -55,6 +58,24 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
         }
     };
 
+
+    const handleCommentSubmit = async (e) => {
+        e.preventDefault();
+        if (!newComment.trim() || !currentUserMongoId) return;
+
+        try {
+            const response = await axios.post(`http://localhost:5000/api/posts/${post._id}/comments`, {
+                authorId: currentUserMongoId,
+                text: newComment
+            });
+            // הוסף את התגובה החדשה לרשימה המקומית
+            setComments(prev => [...prev, response.data]);
+            setNewComment(''); // אפס את תיבת הטקסט
+        } catch (error) {
+            console.error("Failed to add comment", error);
+        }
+    };
+
     const goToNext = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev + 1) % post.media.length); };
     const goToPrevious = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev - 1 + post.media.length) % post.media.length); };
 
@@ -73,8 +94,14 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                         <div className="dropdown ms-auto">
                             <button className="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false"> ⋮ </button>
                             <ul className="dropdown-menu dropdown-menu-end">
-                                <li><button className="dropdown-item" disabled>Edit</button></li>
-                                <li><button className="dropdown-item text-danger" onClick={() => onDelete(post._id)}>Delete</button></li>
+                                <li>
+                                    <button className="dropdown-item" onClick={() => setIsEditing(true)}>Edit</button>
+                                </li>
+                                <li>
+                                    <button className="dropdown-item text-danger"
+                                            onClick={() => onDelete(post._id)}>Delete
+                                    </button>
+                                </li>
                             </ul>
                         </div>
                     )}
@@ -114,6 +141,29 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                         <button className="btn btn-outline-secondary btn-sm">💬 Comment ({post.comments.length})</button>
                     </div>
                     <p className="card-text">{post.text}</p>
+                    <hr/>
+                    <div className="comments-section">
+                        {comments.map(comment => (
+                            <div key={comment._id} className="d-flex mb-2">
+                                <img src={comment.author.profileImageUrl || '...'} alt={comment.author.fullName}
+                                     className="post-author-img me-2 " width="25" height="25"/>
+                                <div>
+                                    <strong>{comment.author.fullName}</strong>
+                                    <p className="mb-0 small">{comment.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <form className="d-flex mt-2" onSubmit={handleCommentSubmit}>
+                        <input
+                            type="text"
+                            className="form-control form-control-sm"
+                            placeholder="Add a comment..."
+                            value={newComment}
+                            onChange={e => setNewComment(e.target.value)}
+                        />
+                        <button type="submit" className="btn btn-outline-primary btn-sm ms-2">Post</button>
+                    </form>
                 </div>
             </div>
 
@@ -123,12 +173,25 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                     <button className="close-btn">&times;</button>
                     {/* FIX 3: Check the 'type' property of the object, not the object itself */}
                     {fullscreenMedia.type.startsWith('video/') ? (
-                        <video src={fullscreenMedia.url} controls autoPlay muted loop />
+                        <video src={fullscreenMedia.url} controls autoPlay muted loop/>
                     ) : (
-                        <img src={fullscreenMedia.url} alt="Fullscreen content" />
+                        <img src={fullscreenMedia.url} alt="Fullscreen content"/>
                     )}
                 </div>
             )}
+
+            {/* הצגה מותנית של מודל העריכה */}
+            {isEditing && (
+                <EditPostModal
+                    post={post}
+                    onUpdate={(updatedPost) => {
+                        onUpdate(updatedPost); // מעדכן את הפוסט ברשימה
+                        setIsEditing(false); // סוגר את המודל
+                    }}
+                    onCancel={() => setIsEditing(false)}
+                />
+            )}
+
         </>
     );
 }

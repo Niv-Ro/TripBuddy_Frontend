@@ -51,10 +51,10 @@ function Page() {
                             {/* This wrapper handles the layout of the icon and text */}
                             <div className="d-inline-flex flex-column align-items-center">
                                 <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                    <circle cx="32" cy="32" r="30" stroke="#555" stroke-width="4" fill="#fff"/>
-                                    <circle cx="32" cy="26" r="10" stroke="#555" stroke-width="3"/>
-                                    <path d="M16 50c2-10 28-10 32 0" stroke="#555" stroke-width="3" fill="none"
-                                          stroke-linecap="round"/>
+                                    <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                                    <circle cx="32" cy="26" r="10" stroke="#555" strokeWidth="3"/>
+                                    <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none"
+                                          strokeLinecap="round"/>
                                 </svg>
 
                                 {/* The text is now below the SVG */}
@@ -69,13 +69,13 @@ function Page() {
                         >
                             <div className="d-inline-flex flex-column align-items-center">
                                 <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                    <circle cx="32" cy="32" r="30" stroke="#555" stroke-width="4" fill="#fff"/>
-                                    <circle cx="32" cy="32" r="18" stroke="#555" stroke-width="3" fill="none"/>
-                                    <ellipse cx="32" cy="32" rx="18" ry="7" stroke="#555" stroke-width="2"
+                                    <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                                    <circle cx="32" cy="32" r="18" stroke="#555" strokeWidth="3" fill="none"/>
+                                    <ellipse cx="32" cy="32" rx="18" ry="7" stroke="#555" strokeWidth="2"
                                              fill="none"/>
-                                    <ellipse cx="32" cy="32" rx="7" ry="18" stroke="#555" stroke-width="2"
+                                    <ellipse cx="32" cy="32" rx="7" ry="18" stroke="#555" strokeWidth="2"
                                              fill="none"/>
-                                    <line x1="14" y1="32" x2="50" y2="32" stroke="#555" stroke-width="2"/>
+                                    <line x1="14" y1="32" x2="50" y2="32" stroke="#555" strokeWidth="2"/>
                                 </svg>
                                 <span className="mt-1">Explore Map</span>
                             </div>
@@ -87,8 +87,8 @@ function Page() {
                         >
                             <div className="d-inline-flex flex-column align-items-center">
                                 <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                    <circle cx="32" cy="32" r="30" stroke="#555" stroke-width="4" fill="#fff"/>
-                                    <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" stroke-width="3"
+                                    <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                                    <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" strokeWidth="3"
                                           fill="none"/>
                                     <polygon points="32,43 38,38 26,38" fill="#7863ad"/>
                                     <circle cx="25" cy="30" r="2" fill="#7863ad"/>
@@ -105,8 +105,8 @@ function Page() {
                         >
                             <div className="d-inline-flex flex-column align-items-center">
                                 <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                    <circle cx="32" cy="32" r="30" stroke="#555" stroke-width="4" fill="#fff"/>
-                                    <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" stroke-width="3"
+                                    <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                                    <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3"
                                           fill="none"/>
                                     <rect x="24" y="26" width="16" height="4" rx="2" fill="#555"/>
                                     <rect x="24" y="32" width="12" height="4" rx="2" fill="#555"/>
