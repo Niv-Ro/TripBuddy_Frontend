@@ -175,7 +175,7 @@ export default function Profile() {
             {/* ==================================================================== */}
             {/* Section 2: Reusable Country List Components                      */}
             {/* ==================================================================== */}
-            <div className="p-4">
+            <div className="p-3 border-bottom">
                 <CountryList
                     title="Countries I've Visited"
                     countries={visitedCountries}
@@ -204,6 +204,9 @@ export default function Profile() {
                     onCancel={() => setAddingToList(null)}
                 />
             )}
+            <div className="px-4">
+                <h2>My posts</h2>
+            </div>
         </div>
     );
 }
