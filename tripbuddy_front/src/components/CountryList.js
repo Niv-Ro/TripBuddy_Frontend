@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/ProfileAdditions.css'; // נשתמש באותו קובץ CSS
+import '../styles/Style.css'; // נשתמש באותו קובץ CSS
 
 function CountryList({ title, countries, onRemove, onAddRequest }) {
     return (

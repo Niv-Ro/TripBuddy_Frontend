@@ -5,7 +5,7 @@ import { handleSignOut } from "@/services/auth/SignOut_handle.js";
 import Profile from "../../components/Profile.js";
 import MapView from "../../components/MapView.js";
 import Chats from "../../components/Chats.js";
-import Feed from "../../components/Feed.js";
+import Feed from "../feed/page.js";
 
 function Page() {
     const [view, setView] = useState('feed');

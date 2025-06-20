@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import '../styles/ProfileAdditions.css';
+import '../styles/Style.css';
 
 function CountrySearch({ allCountries, existingCodes, onSelectCountry, onCancel }) {
     const [searchQuery, setSearchQuery] = useState('');

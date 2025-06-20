@@ -4,11 +4,11 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries.js";
-
+import PostCard from "@/components/PostCard";
 // Import helper components and styles
 import CountryList from "./CountryList";
 import CountrySearch from "./CountrySearch";
-import '../styles/ProfileAdditions.css';
+import '../styles/Style.css';
 
 // A simple Skeleton component for a better loading experience
 const ProfileSkeleton = () => (
@@ -42,6 +42,9 @@ export default function Profile() {
     const [isClient, setIsClient] = useState(false);
     const initialLoad = useRef(true);
 
+    const [userPosts, setUserPosts] = useState([]); // State חדש לפוסטים
+    const [postsLoading, setPostsLoading] = useState(true);
+
     // --- Side Effects ---
 
     // Effect 1: Fetches initial profile data and populates the country lists from the DB
@@ -52,6 +55,18 @@ export default function Profile() {
             .then(res => {
                 const userData = res.data;
                 setData(userData);
+
+                if (userData?._id) {
+                    console.log(userData._id);
+                    axios.get(`http://localhost:5000/api/posts/user/${userData._id}`)
+                        .then(postRes => {
+                            setUserPosts(postRes.data);
+                        })
+                        .catch(postErr =>console.error("Failed to fetch user posts", postErr))
+                        .finally(() => setPostsLoading(false));
+                } else {
+                    setPostsLoading(false);
+                }
 
                 if (userData?.visitedCountries) {
                     const initialVisited = allCountries.filter(c => userData.visitedCountries.includes(c.code3));
@@ -141,6 +156,24 @@ export default function Profile() {
     if (!data) return <ProfileSkeleton />;
     if (data.error) return <div className="p-4 text-danger">{data.error}</div>;
 
+
+    // פונקציה חדשה למחיקת פוסט
+    const handleDeletePost = async (postId) => {
+        if (window.confirm("Are you sure?")) {
+            try {
+                await axios.delete(`http://localhost:5000/api/posts/${postId}`);
+                setUserPosts(prev => prev.filter(p => p._id !== postId));
+            } catch (error) {
+                console.error("Failed to delete post", error);
+            }
+        }
+    };
+
+    // פונקציה לעדכון פוסט ברשימה (למשל, אחרי לייק)
+    const handleUpdatePost = (updatedPost) => {
+        setUserPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p));
+    };
+
     // --- JSX Rendering ---
     return (
         <div>
@@ -150,12 +183,12 @@ export default function Profile() {
             <nav className="navbar navbar-light border-bottom py-3 px-4">
                 <div className="d-flex align-items-center items-center  w-100 ">
                     <div className="shadow-2xl border-1 border-opacity-10"
-                         style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}
+                         style={{width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0}}
                     >
                         <img
                             src={data.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                             alt="Profile"
-                            style={{ width: '100%', height: '100%', objectFit: "cover" }}
+                            style={{width: '100%', height: '100%', objectFit: "cover"}}
                         />
                     </div>
                     <div className="ms-4">
@@ -204,8 +237,22 @@ export default function Profile() {
                     onCancel={() => setAddingToList(null)}
                 />
             )}
-            <div className="px-4">
-                <h2>My posts</h2>
+            <div className="p-4">
+                <h3 className="mb-3">My Posts</h3>
+                {userPosts.length > 0 ? (
+                    userPosts.map(post => (
+                        <PostCard
+                            key={post._id}
+                            post={post}
+                            // העברת ה-ID של המשתמש ממונגו כדי לדעת אם הוא עשה לייק
+                            currentUserMongoId={data?._id}
+                            onUpdate={handleUpdatePost}
+                            onDelete={handleDeletePost}
+                        />
+                    ))
+                ) : (
+                    <p className="text-muted">You haven't posted anything yet.</p>
+                )}
             </div>
         </div>
     );

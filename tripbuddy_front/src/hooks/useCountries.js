@@ -18,7 +18,7 @@ export default function useCountries() {
                         flag: c.flags.svg
                     }))
                     .filter(c => c.code3) // Ensure the country has a 3-letter code
-                    .sort((a, b) => a.name.localeCompare(b));
+                    .sort((a, b) => a.name.localeCompare(b.name));
 
                 setCountries(list);
             } catch (e) {
