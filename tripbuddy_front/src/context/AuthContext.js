@@ -5,13 +5,12 @@ import { onAuthStateChanged } from 'firebase/auth';
 import axios from 'axios';
 import { auth } from '@/services/fireBase.js';
 
-// 1. יצירת ה-Context
 const AuthContext = createContext();
 
-// 2. יצירת ה-Provider - הקומפוננטה שתעטוף את האפליקציה
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null); // המשתמש מ-Firebase Auth
-    const [mongoUser, setMongoUser] = useState(null); // המשתמש מה-DB שלנו (עם _id)
+    // --- State and Hooks ---
+    const [user, setUser] = useState(null);
+    const [mongoUser, setMongoUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

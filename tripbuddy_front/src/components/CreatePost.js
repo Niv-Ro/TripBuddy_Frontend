@@ -6,12 +6,14 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/context/AuthContext'; // כדי לדעת מי המשתמש
 
 export default function CreatePost({onPostCreated}) {
+    // --- State and Hooks ---
     const { user } = useAuth();
     const [text, setText] = useState('');
     const [files, setFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState('');
 
+    // -- handlers --
     const handleFileChange = (e) => {
         if (e.target.files.length > 10) {
             setError('You can select up to 10 files.');
@@ -27,10 +29,8 @@ export default function CreatePost({onPostCreated}) {
             setError('Please fill in text and select at least one file.');
             return;
         }
-
         setIsUploading(true);
         setError('');
-
         try {
             // העלאת כל הקבצים ל-Firebase Storage
             const uploadPromises = files.map(file => {
@@ -38,24 +38,20 @@ export default function CreatePost({onPostCreated}) {
                 return uploadBytes(storageRef, file).then(snapshot =>
                     getDownloadURL(snapshot.ref).then(url => ({
                         url: url,
-                        type: file.type, // 🔥 שומרים את סוג הקובץ מהקובץ המקורי
+                        type: file.type, //  שומרים את סוג הקובץ מהקובץ המקורי
                         path: filePath
                     }))
                 );
             });
-
             const mediaData = await Promise.all(uploadPromises);
-
             // שליחת המידע לשרת שלנו
             const postData = {
                 authorId: user.uid,
                 text,
-                media: mediaData, // 🔥 שולחים את המערך החדש
+                media: mediaData,
                 taggedCountries: [],
             };
-
             await axios.post('http://localhost:5000/api/posts', postData);
-
             // איפוס הטופס
             setText('');
             setFiles([]);

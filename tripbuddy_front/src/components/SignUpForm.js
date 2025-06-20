@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../hooks/useCountries.js';
 import Link from 'next/link'; // 1. מייבאים את Link, אין צורך ב-useRouter כאן
-import { useRouter } from 'next/navigation'; // 1. ייבוא של useRouter מ-Next.js
+import { useRouter } from 'next/navigation';
 
 const SignUpForm = ({ onSubmit }) => {
-    const router = useRouter(); // 3. שימוש ב-Hook של Next.js
+    // --- State and Hooks ---
+    const router = useRouter();
     const [profileImage, setProfileImage] = useState(null);
-    const [profileImagePreview, setProfileImagePreview] = useState(""); // the preview
+    const [profileImagePreview, setProfileImagePreview] = useState("");
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -15,10 +16,9 @@ const SignUpForm = ({ onSubmit }) => {
     const [birthDate, setBirthDate] = useState("");
     const [countryOrigin, setCountryOrigin] = useState("");
     const [gender, setGender] = useState("");
-
-
     const countries = useCountries();
 
+    // -- handlers --
     const handleImageChange = e => {
         if (e.target.files && e.target.files[0]) {
             setProfileImage(e.target.files[0]); // Keep the file, not URL
@@ -35,7 +35,6 @@ const SignUpForm = ({ onSubmit }) => {
     return (
         <div className="text-center">
             <form onSubmit={handleSubmit}>
-                {/* ... כל שדות הטופס נשארים ללא שינוי ... */}
                 <div className="text-center mb-3">
                     <label htmlFor="profileImage" style={{cursor: 'pointer'}}>
                         <div style={{
@@ -133,7 +132,7 @@ const SignUpForm = ({ onSubmit }) => {
                     </select>
                 </div>
 
-                <div className="mb-3"> {/* תיקנתי מ-mb-6 ל-mb-3 בשביל עקביות */}
+                <div className="mb-3">
                     <select
                         className="form-select"
                         value={gender}
@@ -149,7 +148,6 @@ const SignUpForm = ({ onSubmit }) => {
                 <button type="submit" className="btn btn-primary w-100 mb-3">Register</button>
             </form>
 
-            {/* 3. המרת הכפתור ל-Link */}
             <Link href="/" className="btn btn-secondary">
                 Sign In
             </Link>

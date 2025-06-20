@@ -3,15 +3,14 @@ import React, { useState } from "react";
 import NewChatWindow from "./NewChat";
 
 function Chats() {
+    // --- State and Hooks ---
     const [searchTerm, setSearchTerm] = useState('');
     const [chatView, setChatView] = useState('all-chats'); // State to switch between views
-
     const allConversations = [
         'Chat with Alice',
         'Chat with Bob',
         'Group: Travel Plans',
     ];
-
     const filteredConversations = allConversations.filter(chat =>
         chat.toLowerCase().includes(searchTerm.toLowerCase())
     );

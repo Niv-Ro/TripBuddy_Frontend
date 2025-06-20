@@ -32,21 +32,16 @@ export default function Profile() {
     const [data, setData] = useState(null);
     const { user } = useAuth();
     const allCountries = useCountries();
-
     const [visitedCountries, setVisitedCountries] = useState([]);
     const [wishlistCountries, setWishlistCountries] = useState([]);
-
     const [addingToList, setAddingToList] = useState(null); // Determines which list to add to: 'visited' | 'wishlist'
     const [searchQuery, setSearchQuery] = useState('');
-
     const [isClient, setIsClient] = useState(false);
     const initialLoad = useRef(true);
-
-    const [userPosts, setUserPosts] = useState([]); // State חדש לפוסטים
+    const [userPosts, setUserPosts] = useState([]);
     const [postsLoading, setPostsLoading] = useState(true);
 
-    // --- Side Effects ---
-
+    // --- Effects ---
     // Effect 1: Fetches initial profile data and populates the country lists from the DB
     useEffect(() => {
         if (!user?.email || allCountries.length === 0) return;

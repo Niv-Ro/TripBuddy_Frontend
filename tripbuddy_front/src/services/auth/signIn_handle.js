@@ -3,11 +3,12 @@ import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from 'fireba
 
 
 export async function handleSignIn(formValues) {
+    // --- State and Hooks ---
     const { email, password} = formValues;
+
     try {
         await signInWithEmailAndPassword(auth, email, password);
     }catch (err){
         console.log(err)
     }
-
 }

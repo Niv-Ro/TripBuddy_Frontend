@@ -6,12 +6,11 @@ import CreatePost from "@/components/CreatePost";
 import PostCard from "@/components/PostCard";
 
 export default function Feed() {
+    // --- State and Hooks ---
     const [searchTerm, setSearchTerm] = useState('');
     const [allPosts, setAllPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-    // FIX 1: קבלת פרטי המשתמש המחובר מה-Context
     const { user, mongoUser } = useAuth();
 
     const fetchPosts = () => {
@@ -24,10 +23,15 @@ export default function Feed() {
             .finally(() => setIsLoading(false));
     };
 
+    const filteredPosts = allPosts.filter(post =>
+        post.text.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     useEffect(() => {
         fetchPosts();
     }, []);
 
+    // -- handlers --
     const handlePostCreated = () => {
         setIsCreateModalOpen(false);
         fetchPosts(); // רענון הפיד
@@ -48,10 +52,6 @@ export default function Feed() {
             }
         }
     };
-
-    const filteredPosts = allPosts.filter(post =>
-        post.text.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
     return (
         <div className="d-flex flex-column" style={{ height: '100vh' }}>

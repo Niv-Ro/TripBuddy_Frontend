@@ -8,8 +8,8 @@ import Chats from "../../components/Chats.js";
 import Feed from "../feed/page.js";
 
 function Page() {
+    // --- State and Hooks ---
     const [view, setView] = useState('feed');
-
     const onSignOut = async () => {
         await handleSignOut();
     };

@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 
 export default function useCountries() {
+    // --- State and Hooks ---
     const [countries, setCountries] = useState([]);
 
     useEffect(() => {
         async function fetchCountries() {
             try {
-                // 🔥 FIX 1: Add 'cca3' to the fields we are fetching from the API
                 const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,cca3,flags');
                 const data = await res.json();
-
                 const list = data
                     .map(c => ({
                         name: c.name.common,

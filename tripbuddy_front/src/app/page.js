@@ -4,7 +4,6 @@ import SignInForm from "@/components/SignInForm";
 import {handleRegister} from "@/services/auth/register_handle";
 import {handleSignIn} from "@/services/auth/signIn_handle";
 
-
 const SignIn = () => (
     <div className="container vh-100 d-flex justify-content-center align-items-center">
         <div className="card shadow" style={{minWidth: '500px'}}>

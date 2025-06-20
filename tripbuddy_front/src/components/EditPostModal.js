@@ -3,15 +3,17 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 export default function EditPostModal({ post, onUpdate, onCancel }) {
+    // --- State and Hooks ---
     const [text, setText] = useState(post.text);
     const [isSaving, setIsSaving] = useState(false);
 
+    // --  handlers --
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);
         try {
             const response = await axios.put(`http://localhost:5000/api/posts/${post._id}`, { text });
-            onUpdate(response.data); // עדכון הפוסט ברשימה הראשית
+            onUpdate(response.data);
         } catch (error) {
             console.error("Failed to update post", error);
             alert("Update failed.");

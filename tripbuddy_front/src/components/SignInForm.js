@@ -1,20 +1,19 @@
 "use client"
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { useRouter } from 'next/navigation'; // 1. ייבוא של useRouter מ-Next.js
-import Link from 'next/link'; // 2. ייבוא של Link מ-Next.js
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 const SignInForm = ({ onSubmit }) => {
+    // --- State and Hooks ---
     const router = useRouter(); // 3. שימוש ב-Hook של Next.js
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
+    // -- handlers --
     const handleSubmit = async e => {
         e.preventDefault();
-        // כאן הלוגיקה של שליחת הטופס נשארת זהה
         await onSubmit({ email, password });
-
-        // 4. ניווט פרוגרמטי לאחר ההתחברות
         router.push('/mainscreen');
     };
 
@@ -32,7 +31,7 @@ const SignInForm = ({ onSubmit }) => {
                     />
                 </div>
 
-                <div className="mb-3"> {/* תיקנתי מ-mb-6 ל-mb-3 בשביל עקביות */}
+                <div className="mb-3">
                     <input
                         type="password"
                         className="form-control"
@@ -45,7 +44,6 @@ const SignInForm = ({ onSubmit }) => {
                 <button type="submit" className="btn btn-primary w-100 mb-3">Login</button>
             </form>
 
-            {/* 5. שימוש ברכיב Link לניווט דקלרטיבי */}
             <Link href="/signup" className="btn btn-secondary">
                 Sign Up
             </Link>

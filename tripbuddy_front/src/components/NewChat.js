@@ -5,7 +5,6 @@ import React from "react";
 function NewChat() {
     return (
         <div className="flex flex-col items-center justify-center p-5 text-center">
-
             <div className="w-full max-w-md">
                 <h2 className="text-3xl font-bold text-slate-800">
                     Start a New Chat
@@ -24,7 +23,6 @@ function NewChat() {
                     </button>
                 </div>
             </div>
-
         </div>
     );
 }

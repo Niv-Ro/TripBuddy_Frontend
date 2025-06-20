@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/Style.css'; // נשתמש באותו קובץ CSS
+import '../styles/Style.css';
 
 function CountryList({ title, countries, onRemove, onAddRequest }) {
     return (

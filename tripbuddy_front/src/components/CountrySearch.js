@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import '../styles/Style.css';
 
 function CountrySearch({ allCountries, existingCodes, onSelectCountry, onCancel }) {
+    // --- State and Hooks ---
     const [searchQuery, setSearchQuery] = useState('');
 
     const filteredCountries = searchQuery
@@ -12,6 +13,7 @@ function CountrySearch({ allCountries, existingCodes, onSelectCountry, onCancel 
         )
         : [];
 
+    // -- handlers --
     const handleSelect = (country) => {
         onSelectCountry(country);
         setSearchQuery(''); // Reset search after selection

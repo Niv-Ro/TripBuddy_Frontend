@@ -12,10 +12,12 @@ import { Tooltip } from "react-tooltip"
 const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json"
 
 function MapView() {
+    // --- State and Hooks ---
     const [content, setContent] = useState("");
     const [clickedCountries, setClickedCountries] = useState({});
     const [position, setPosition] = useState({ coordinates: [15, 0], zoom: 1 });
 
+    // --- Handler Functions ---
     const handleCountryClick = (rsmKey) => {
         setClickedCountries(prev => ({
             ...prev,
@@ -58,8 +60,8 @@ function MapView() {
             <div style={{
                 width: '1200px',
                 borderStyle: "double",
-                position: 'fixed', // Changed from fixed to relative
-                zIndex: 1 // Lower than tooltip
+                position: 'fixed',
+                zIndex: 1
             }}>
                 <ComposableMap>
                     <ZoomableGroup

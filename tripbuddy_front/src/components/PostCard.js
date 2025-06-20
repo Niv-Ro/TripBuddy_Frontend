@@ -4,20 +4,26 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
-import EditPostModal from './EditPostModal'; // ייבוא המודל
+import EditPostModal from './EditPostModal';
 
 export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete }) {
-    // --- State Management ---
+    // --- State and Hooks ---
     const { user } = useAuth(); // User from Firebase Auth for ownership checks
     const [likes, setLikes] = useState(post?.likes || []);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
-    // FIX 1: State variable now correctly named 'fullscreenMedia' to hold the entire media object
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
     const [comments, setComments] = useState(post.comments || []);
     const [newComment, setNewComment] = useState('');
+    const isOwner = user && user.uid === post.author.firebaseUid;
+    const isLikedByCurrentUser = currentUserMongoId ? likes.includes(currentUserMongoId) : false;
+    const hasMultipleMedia = post.media && post.media.length > 1;
+    const currentMedia = post.media?.[currentMediaIndex]; // This is an object: { url, type }
+    const isVideo = currentMedia?.type.startsWith('video/');
+    const goToNext = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev + 1) % post.media.length); };
+    const goToPrevious = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev - 1 + post.media.length) % post.media.length); };
 
-    // --- Side Effects ---
+
     // This effect ensures Bootstrap's JavaScript for dropdowns is loaded on the client
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -27,14 +33,6 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
 
     // --- Guards and Checks ---
     if (!post || !post.author) return null;
-
-    const isOwner = user && user.uid === post.author.firebaseUid;
-    const isLikedByCurrentUser = currentUserMongoId ? likes.includes(currentUserMongoId) : false;
-
-    // --- Media Logic ---
-    const hasMultipleMedia = post.media && post.media.length > 1;
-    const currentMedia = post.media?.[currentMediaIndex]; // This is an object: { url, type }
-    const isVideo = currentMedia?.type.startsWith('video/');
 
     // --- Handlers ---
     const handleLikeToggle = async () => {
@@ -58,17 +56,14 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
         }
     };
 
-
     const handleCommentSubmit = async (e) => {
         e.preventDefault();
         if (!newComment.trim() || !currentUserMongoId) return;
-
         try {
             const response = await axios.post(`http://localhost:5000/api/posts/${post._id}/comments`, {
                 authorId: currentUserMongoId,
                 text: newComment
             });
-            // הוסף את התגובה החדשה לרשימה המקומית
             setComments(prev => [...prev, response.data]);
             setNewComment(''); // אפס את תיבת הטקסט
         } catch (error) {
@@ -76,14 +71,9 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
         }
     };
 
-    const goToNext = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev + 1) % post.media.length); };
-    const goToPrevious = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev - 1 + post.media.length) % post.media.length); };
-
-    // --- JSX Rendering ---
     return (
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
-                {/* Header */}
                 <div className="card-header bg-white d-flex align-items-center p-2">
                     <img src={post.author.profileImageUrl || 'https://i.pravatar.cc/150'} alt={post.author.fullName} className="post-author-img me-2"/>
                     <div className="d-flex flex-column">
@@ -111,7 +101,6 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                 <div className="media-container" onClick={() => setFullscreenMedia(currentMedia)}>
                     {currentMedia ? (
                         isVideo ? (
-                            // FIX 2: Added 'controls' attribute so the video player UI shows up
                             <video src={currentMedia.url} className="post-media" controls />
                         ) : (
                             <img src={currentMedia.url} alt="Post content" className="post-media" />
@@ -171,7 +160,6 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
             {fullscreenMedia && (
                 <div className="fullscreen-viewer" onClick={() => setFullscreenMedia(null)}>
                     <button className="close-btn">&times;</button>
-                    {/* FIX 3: Check the 'type' property of the object, not the object itself */}
                     {fullscreenMedia.type.startsWith('video/') ? (
                         <video src={fullscreenMedia.url} controls autoPlay muted loop/>
                     ) : (
@@ -185,8 +173,8 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                 <EditPostModal
                     post={post}
                     onUpdate={(updatedPost) => {
-                        onUpdate(updatedPost); // מעדכן את הפוסט ברשימה
-                        setIsEditing(false); // סוגר את המודל
+                        onUpdate(updatedPost);
+                        setIsEditing(false);
                     }}
                     onCancel={() => setIsEditing(false)}
                 />
