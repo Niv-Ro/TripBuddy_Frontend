@@ -63,6 +63,7 @@ export default function Profile() {
                     setPostsLoading(false);
                 }
 
+                // This logic correctly repopulates the lists with full country objects
                 if (userData?.visitedCountries) {
                     const initialVisited = allCountries.filter(c => userData.visitedCountries.includes(c.code3));
                     setVisitedCountries(initialVisited);
@@ -85,14 +86,23 @@ export default function Profile() {
     useEffect(() => {
         if (initialLoad.current || !user?.email) return;
 
-        const visitedCodes = visitedCountries.map(c => c.code3);
-        const wishlistCodes = wishlistCountries.map(c => c.code3);
+        // Map to cca3 for profile lists
+        const visitedCca3 = visitedCountries.map(c => c.code3);
+        const wishlistCca3 = wishlistCountries.map(c => c.code3);
 
-        console.log('SAVING TO DB:', { visited: visitedCodes, wishlist: wishlistCodes }); // For debugging
+        // Map to ccn3 for map coloring
+        const visitedCcn3 = visitedCountries.map(c => c.ccn3);
+        const wishlistCcn3 = wishlistCountries.map(c => c.ccn3);
 
+
+        console.log('SAVING TO DB:', { visited: visitedCca3, wishlist: wishlistCca3, visitedCcn3, wishlistCcn3 }); // For debugging
+
+        // Send all four arrays to the backend
         axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
-            visited: visitedCodes,
-            wishlist: wishlistCodes
+            visited: visitedCca3,
+            wishlist: wishlistCca3,
+            visitedCcn3: visitedCcn3,
+            wishlistCcn3: wishlistCcn3
         })
             .then(res => console.log('Lists saved successfully!'))
             .catch(err => console.error('Failed to save lists:', err));
@@ -128,7 +138,7 @@ export default function Profile() {
     // --- Helper Functions ---
     function getAge(dateString) {
         if (!dateString) return '';
-        const today = new Date();
+        const today = new Date(); // Corrected this line
         const birthDate = new Date(dateString);
         let age = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();

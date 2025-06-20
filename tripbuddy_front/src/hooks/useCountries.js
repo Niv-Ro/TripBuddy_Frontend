@@ -7,16 +7,18 @@ export default function useCountries() {
     useEffect(() => {
         async function fetchCountries() {
             try {
-                const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,cca3,flags');
+                // Fetched ccn3 for mapping
+                const res = await fetch('https://restcountries.com/v3.1/all?fields=name,cca2,cca3,ccn3,flags');
                 const data = await res.json();
                 const list = data
                     .map(c => ({
                         name: c.name.common,
                         code: c.cca2,      // 2-letter code (e.g., 'IL')
-                        code3: c.cca3,     // 🔥 FIX 2: Add the 3-letter code to our object
+                        code3: c.cca3,     // 3-letter code (e.g., 'ISR')
+                        ccn3: c.ccn3,      // 3-digit numeric code (e.g., '376')
                         flag: c.flags.svg
                     }))
-                    .filter(c => c.code3) // Ensure the country has a 3-letter code
+                    .filter(c => c.code3 && c.ccn3) // Ensure the country has the necessary codes
                     .sort((a, b) => a.name.localeCompare(b.name));
 
                 setCountries(list);
