@@ -1,11 +1,10 @@
 "use client"
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import CreatePost from "@/components/CreatePost";
 import PostCard from "@/components/PostCard";
 
-// The component now accepts 'onNavigateToProfile' as a prop from its parent
 export default function Feed({ onNavigateToProfile }) {
     const [searchTerm, setSearchTerm] = useState('');
     const [allPosts, setAllPosts] = useState([]);
@@ -13,10 +12,14 @@ export default function Feed({ onNavigateToProfile }) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const { mongoUser } = useAuth();
 
-    // Fetches all posts from the server
-    const fetchPosts = () => {
+    // ✅ FIX: הוצאנו את פונקציית fetchPosts מחוץ ל-useEffect
+    // כדי שרכיבים אחרים (כמו useEffect וה-handlers) יוכלו לגשת אליה.
+    // עטפנו אותה ב-useCallback כדי למנוע יצירה מחדש שלה בכל רינדור.
+    const fetchPosts = useCallback(() => {
+        if (!mongoUser) return; // אל תביא פוסטים אם המשתמש עדיין לא זוהה
+
         setIsLoading(true);
-        axios.get('http://localhost:5000/api/posts')
+        axios.get(`http://localhost:5000/api/posts/feed/${mongoUser._id}`)
             .then(res => {
                 setAllPosts(res.data);
             })
@@ -26,29 +29,27 @@ export default function Feed({ onNavigateToProfile }) {
             .finally(() => {
                 setIsLoading(false);
             });
-    };
+        // ❌ FIX: הסרנו את הקריאה הרקורסיבית fetchPosts() שהייתה כאן וגרמה ללולאה אינסופית
+    }, [mongoUser]); // התלות היא ב-mongoUser, הפונקציה תיווצר מחדש רק אם הוא משתנה
 
-    // Fetch posts when the component mounts
+    // ✅ FIX: איחדנו את שני ה-useEffect לאחד שאחראי על טעינת הנתונים
     useEffect(() => {
         fetchPosts();
-    }, []);
+    }, [fetchPosts]); // קרא ל-fetchPosts כשהרכיב עולה לראשונה, או כשהפונקציה עצמה משתנה (כלומר כש-mongoUser משתנה)
 
-    // This function runs after a new post is successfully created
+
     const handlePostCreated = () => {
-        setIsCreateModalOpen(false); // Close the modal
-        fetchPosts();                // Refresh the feed
+        setIsCreateModalOpen(false);
+        fetchPosts(); // עכשיו הקריאה הזו תעבוד כי הפונקציה מוצהרת מחוץ ל-useEffect
     };
 
-    // Function to update a single post in the list (e.g., after a like)
     const handleUpdatePost = (updatedPost) => {
         setAllPosts(prevPosts =>
             prevPosts.map(p => (p._id === updatedPost._id ? updatedPost : p))
         );
     };
 
-    // Function to remove a post from the list after deletion
     const handleDeletePost = async (postId) => {
-        // We only show the confirmation here, the actual check if the user is the owner is in PostCard
         if (window.confirm("Are you sure you want to delete this post?")) {
             try {
                 await axios.delete(`http://localhost:5000/api/posts/${postId}`);
@@ -60,7 +61,6 @@ export default function Feed({ onNavigateToProfile }) {
         }
     };
 
-    // Filter posts based on the search term
     const filteredPosts = allPosts.filter(post =>
         post.text.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -96,7 +96,6 @@ export default function Feed({ onNavigateToProfile }) {
                             currentUserMongoId={mongoUser?._id}
                             onUpdate={handleUpdatePost}
                             onDelete={handleDeletePost}
-                            // Pass the navigation function down to the PostCard
                             onNavigateToProfile={onNavigateToProfile}
                         />
                     ))

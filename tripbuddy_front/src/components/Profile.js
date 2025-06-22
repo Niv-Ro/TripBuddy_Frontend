@@ -46,6 +46,10 @@ export default function Profile({ userId, onNavigateToProfile }) {
     // This check is the single source of truth for edit/delete permissions
     const isOwnProfile = mongoUser?._id === userId;
 
+    // State for Follow button
+    const [followersCount, setFollowersCount] = useState(0);
+    const [isFollowing, setIsFollowing] = useState(false);
+
     // Effect 1: Fetches the viewed profile's data
     useEffect(() => {
         setIsClient(true);
@@ -58,6 +62,13 @@ export default function Profile({ userId, onNavigateToProfile }) {
             .then(res => {
                 const userData = res.data;
                 setProfileData(userData);
+
+                // ✅ FIX: Added logic to set the follow status and count
+                if (userData.followers && mongoUser) {
+                    setFollowersCount(userData.followers.length);
+                    // Check if the logged-in user's ID is in the followers list
+                    setIsFollowing(userData.followers.includes(mongoUser._id));
+                }
 
                 // If it's our own profile, initialize the editable state lists from the fetched data
                 if (isOwnProfile && allCountries.length > 0) {
@@ -76,19 +87,17 @@ export default function Profile({ userId, onNavigateToProfile }) {
             })
             .finally(() => {
                 setLoading(false);
-                // Allow saving only after a short delay, to prevent saving on initial load
                 setTimeout(() => { initialLoad.current = false; }, 500);
             });
-    }, [userId, allCountries, isOwnProfile]);
+    }, [userId, allCountries, isOwnProfile, mongoUser]); // ✅ FIX: Added mongoUser to dependency array
 
     // Effect 2: Automatically saves the lists to the DB ONLY if it's our own profile and the lists change
     useEffect(() => {
         if (!isOwnProfile || initialLoad.current || !user?.email) return;
 
-        // FIX: Send ONLY the cca3 codes that the backend expects
         const visitedCca3 = visitedCountries.map(c => c.code3);
         const wishlistCca3 = wishlistCountries.map(c => c.code3);
-        const visitedCcn3 = visitedCountries.map(c => c.name); // לדוגמה, אם 'name' הוא שדה שם המדינה
+        const visitedCcn3 = visitedCountries.map(c => c.name);
         const wishlistCcn3 = wishlistCountries.map(c => c.name);
 
         axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
@@ -130,6 +139,26 @@ export default function Profile({ userId, onNavigateToProfile }) {
         setUserPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p));
     };
 
+    const handleFollowToggle = async () => {
+        if (!mongoUser) {
+            alert("You must be logged in to follow users.");
+            return;
+        }
+        try {
+            await axios.post(
+                `http://localhost:5000/api/users/${userId}/follow`,
+                { loggedInUserId: mongoUser._id }
+            );
+            // Update the UI instantly for better user experience
+            setIsFollowing(prev => !prev);
+            setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+
+        } catch (error) {
+            console.error("Failed to toggle follow", error);
+            alert("Something went wrong.");
+        }
+    };
+
     function getAge(dateString) {
         if (!dateString) return '';
         const today = new Date();
@@ -145,7 +174,6 @@ export default function Profile({ userId, onNavigateToProfile }) {
     if (loading) return <ProfileSkeleton />;
     if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
 
-    // Decide which lists to display: the editable state for our own profile, or the static data for others.
     const finalVisited = isOwnProfile ? visitedCountries : (profileData.visitedCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
     const finalWishlist = isOwnProfile ? wishlistCountries : (profileData.wishlistCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
 
@@ -157,8 +185,21 @@ export default function Profile({ userId, onNavigateToProfile }) {
                     <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
                         <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
                     </div>
+                    {/* ✅ FIX: Added Follower count and Follow button */}
                     <div className="ms-4">
                         <h1 className="py-2 mb-1">{profileData.fullName}</h1>
+                        <h5 className="mb-2 text-muted">{followersCount} Followers</h5>
+
+                        {/* The button will only show on other users' profiles */}
+                        {!isOwnProfile && mongoUser && (
+                            <button
+                                className={`btn mb-2 ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                                onClick={handleFollowToggle}
+                            >
+                                {isFollowing ? 'Unfollow' : 'Follow'}
+                            </button>
+                        )}
+
                         <h5 className="mb-1">Country: {profileData.countryOrigin}</h5>
                         <h5 className="mb-1">Gender: {profileData.gender}</h5>
                         <h5 className="mb-0">Age: {isClient ? getAge(profileData.birthDate) : '...'}</h5>

@@ -5,37 +5,44 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import EditPostModal from './EditPostModal';
+import useCountries from '@/hooks/useCountries';
 
 
 export default function PostCard({ post ,onNavigateToProfile , currentUserMongoId, onUpdate, onDelete }) {
     // --- State and Hooks ---
     const { user } = useAuth(); // User from Firebase Auth for ownership checks
+    const allCountries = useCountries();
     const [likes, setLikes] = useState(post?.likes || []);
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
     const [comments, setComments] = useState(post.comments || []);
     const [newComment, setNewComment] = useState('');
+
+    // --- Derived State & Checks ---
     const isOwner = user && user.uid === post.author.firebaseUid;
     const isLikedByCurrentUser = currentUserMongoId ? likes.includes(currentUserMongoId) : false;
     const hasMultipleMedia = post.media && post.media.length > 1;
-    const currentMedia = post.media?.[currentMediaIndex]; // This is an object: { url, type }
+    const currentMedia = post.media?.[currentMediaIndex];
     const isVideo = currentMedia?.type.startsWith('video/');
-    const goToNext = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev + 1) % post.media.length); };
-    const goToPrevious = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev - 1 + post.media.length) % post.media.length); };
 
+    const taggedCountryObjects = post.taggedCountries
+        ?.map(code => allCountries.find(c => c.code3 === code))
+        .filter(Boolean);
 
-    // This effect ensures Bootstrap's JavaScript for dropdowns is loaded on the client
+    // --- Effects & Handlers ---
     useEffect(() => {
         if (typeof window !== 'undefined') {
             require('bootstrap/dist/js/bootstrap.bundle.min.js');
         }
     }, []);
 
-    // --- Guards and Checks ---
     if (!post || !post.author) return null;
 
-    // --- Handlers ---
+    const goToNext = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev + 1) % post.media.length); };
+    const goToPrevious = (e) => { e.stopPropagation(); setCurrentMediaIndex(prev => (prev - 1 + post.media.length) % post.media.length); };
+    const handleProfileClick = () => { if (onNavigateToProfile) onNavigateToProfile(post.author._id); };
+
     const handleLikeToggle = async () => {
         if (!currentUserMongoId) {
             alert("You must be logged in to like a post.");
@@ -66,58 +73,39 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                 text: newComment
             });
             setComments(prev => [...prev, response.data]);
-            setNewComment(''); // אפס את תיבת הטקסט
+            setNewComment('');
         } catch (error) {
             console.error("Failed to add comment", error);
         }
     };
 
-    // ✅ FIX: This function now correctly uses post.author._id
-    const handleProfileClick = () => {
-        if (onNavigateToProfile) {
-            onNavigateToProfile(post.author._id); // Use post.author._id
-        }
-    }
-
     return (
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
                 <div className="card-header bg-white d-flex align-items-center p-2">
-                    {/* ✅ FIX: Replaced <Link> with a clickable <div> that calls handleProfileClick */}
-                    <div
-                        onClick={handleProfileClick}
-                        className="d-flex align-items-center text-decoration-none text-dark"
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <img src={post.author.profileImageUrl || 'default-avatar.png'} alt={post.author.fullName}
-                             className="post-author-img me-2"/>
+                    <div onClick={handleProfileClick} className="d-flex align-items-center text-decoration-none text-dark" style={{ cursor: 'pointer' }}>
+                        <img src={post.author.profileImageUrl || 'default-avatar.png'} alt={post.author.fullName} className="post-author-img me-2"/>
                         <div className="d-flex flex-column">
                             <strong>{post.author.fullName}</strong>
-                            <small
-                                className="text-muted">{formatDistanceToNow(new Date(post.createdAt), {addSuffix: true})}</small>
+                            <small className="text-muted">{formatDistanceToNow(new Date(post.createdAt), {addSuffix: true})}</small>
                         </div>
                     </div>
 
                     {isOwner && (
                         <div className="dropdown ms-auto">
-                            <button className="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown"
-                                    aria-expanded="false"> ⋮
-                            </button>
+                            <button className="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false"> ⋮ </button>
                             <ul className="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <button className="dropdown-item" onClick={() => setIsEditing(true)}>Edit</button>
                                 </li>
                                 <li>
-                                    <button className="dropdown-item text-danger"
-                                            onClick={() => onDelete(post._id)}>Delete
-                                    </button>
+                                    <button className="dropdown-item text-danger" onClick={() => onDelete(post._id)}>Delete</button>
                                 </li>
                             </ul>
                         </div>
                     )}
                 </div>
 
-                {/* Media Container */}
                 <div className="media-container" onClick={() => setFullscreenMedia(currentMedia)}>
                     {currentMedia ? (
                         isVideo ? (
@@ -126,8 +114,7 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                             <img src={currentMedia.url} alt="Post content" className="post-media"/>
                         )
                     ) : (
-                        <div className="post-media d-flex align-items-center justify-content-center text-muted">No
-                            media available</div>
+                        <div className="post-media d-flex align-items-center justify-content-center text-muted">No media available</div>
                     )}
 
                     {hasMultipleMedia && (
@@ -139,7 +126,6 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                     )}
                 </div>
 
-                {/* Card Body */}
                 <div className="card-body">
                     <div className="d-flex align-items-center mb-2">
                         <button
@@ -148,10 +134,27 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                         >
                             ❤️ Like ({likes.length})
                         </button>
-                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({comments.length})
-                        </button>
+                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({comments.length})</button>
                     </div>
                     <p className="card-text">{post.text}</p>
+
+                    {taggedCountryObjects && taggedCountryObjects.length > 0 && (
+                        <div className="mt-3">
+                            <div className="d-flex flex-wrap align-items-center gap-2">
+                                {taggedCountryObjects.map(country => (
+                                    <span key={country.code} className="badge bg-light text-dark fw-normal border d-flex align-items-center">
+                                        <img
+                                            src={country.flag}
+                                            alt={country.name}
+                                            style={{ width: '16px', height: '12px', marginRight: '5px', objectFit: 'cover' }}
+                                        />
+                                        {country.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <hr/>
                     <div className="comments-section">
                         {comments.map(comment => (
@@ -178,7 +181,6 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                 </div>
             </div>
 
-            {/* Fullscreen Viewer */}
             {fullscreenMedia && (
                 <div className="fullscreen-viewer" onClick={() => setFullscreenMedia(null)}>
                     <button className="close-btn">&times;</button>
@@ -190,7 +192,6 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                 </div>
             )}
 
-            {/* הצגה מותנית של מודל העריכה */}
             {isEditing && (
                 <EditPostModal
                     post={post}
@@ -201,7 +202,6 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                     onCancel={() => setIsEditing(false)}
                 />
             )}
-
         </>
     );
 }

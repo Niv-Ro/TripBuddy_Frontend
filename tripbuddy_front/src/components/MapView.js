@@ -1,554 +1,335 @@
-
-"use client"
-
-import React, { useState, useEffect, useRef } from "react";
-
+"use client";
+import React, { useEffect, useRef, useState } from "react";
+import Globe from "react-globe.gl";
 import axios from "axios";
-
 import { useAuth } from "@/context/AuthContext";
+import useCountries from "@/hooks/useCountries";
 
-import useCountries from "@/hooks/useCountries"; // Import the hook to get all countries
-
-import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
-
-import { Tooltip } from "react-tooltip";
-
-
-
-// URL for the map topology
-
-const geoUrl = "https://unpkg.com/world-atlas@2.0.2/countries-110m.json";
-
-
-
-// --- Legend Component ---
+const globeImageUrl = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
+const bumpImageUrl = "https://unpkg.com/three-globe/example/img/earth-topology.png";
 
 const MapLegend = () => (
-
     <div style={{
-
-        position: 'absolute',
-
-        bottom: '20px',
-
-        left: '20px',
-
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-
-        padding: '15px',
-
-        borderRadius: '8px',
-
-        boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-
-        zIndex: 1000,
-
-        display: 'flex',
-
-        flexDirection: 'column',
-
-        gap: '10px',
-
+        position: 'absolute', bottom: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.9)',
+        padding: '15px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.2)', zIndex: 1000,
         fontFamily: 'Arial, sans-serif'
-
     }}>
-
-        <h4 style={{ margin: '0 0 5px 0', paddingBottom: '5px', borderBottom: '1px solid #ccc' }}>Legend</h4>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-            <div style={{ width: '20px', height: '20px', backgroundColor: 'orange', border: '1px solid #ccc' }}></div>
-
+        <h4 style={{margin:0,marginBottom:10,fontSize:16}}>Legend</h4>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+            <span style={{background:"orange",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
             <span>Wishlist</span>
-
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#f9ff33', border: '1px solid #ccc' }}></div>
-
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+            <span style={{background:"#f9ff33",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
             <span>Visited</span>
-
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-
-            <div style={{ width: '20px', height: '20px', backgroundColor: '#2D723D', border: '1px solid #ccc' }}></div>
-
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <span style={{background:"#2D723D",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
             <span>Not Selected</span>
-
         </div>
-
-        <p style={{ fontSize: '12px', margin: '10px 0 0 0', paddingTop: '10px', borderTop: '1px solid #ccc' }}>
-
-            <b>Instructions:</b><br />
-
-            - 1st Click: Add to Wishlist<br />
-
-            - 2nd Click: Add to Visited<br />
-
+        <div style={{fontSize:12,color:'#666'}}>
+            <b>Instructions:</b><br/>
+            - 1st Click: Add to Wishlist<br/>
+            - 2nd Click: Mark as Visited<br/>
             - 3rd Click: Remove from lists
-
-        </p>
-
+        </div>
     </div>
-
 );
 
-
-
-
-
 function MapView() {
-
-// --- State and Hooks ---
-
     const { user } = useAuth();
-
-    const allCountries = useCountries(); // Get the master list of all countries
-
-    const [content, setContent] = useState("");
-
-    const [position, setPosition] = useState({ coordinates: [15, 0], zoom: 1 });
-
-
-
-// State to hold the full country objects for visited and wishlist
-
+    const allCountries = useCountries();
     const [visitedCountries, setVisitedCountries] = useState([]);
-
     const [wishlistCountries, setWishlistCountries] = useState([]);
+    const [geoData, setGeoData] = useState({ features: [] });
+    const [hoveredCountry, setHoveredCountry] = useState(null);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const globeEl = useRef();
+    const initialLoad = useRef(true);
 
-    const initialLoad = useRef(true); // Prevent saving on initial data fetch
+    // Mouse move handler for tooltip positioning
+    const handleMouseMove = (e) => {
+        setMousePos({ x: e.clientX, y: e.clientY });
+    };
 
-
-
-
-
-// --- Effects ---
-
-// Effect 1: Fetch initial user data to populate the lists
-
+    // 1. Load map geometry
     useEffect(() => {
+        const loadMapData = async () => {
+            try {
+                const response = await fetch("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson");
+                const world = await response.json();
 
+                const processedFeatures = world.features.map((feature) => ({
+                    ...feature,
+                    id: feature.properties.ISO_A3 || feature.id,
+                    properties: {
+                        ...feature.properties,
+                        name: feature.properties.NAME || feature.properties.ADMIN
+                    }
+                }));
+
+                setGeoData({
+                    type: "FeatureCollection",
+                    features: processedFeatures
+                });
+            } catch (err) {
+                console.error("Failed to load map data:", err);
+                setGeoData({ type: "FeatureCollection", features: [] });
+            }
+        };
+
+        loadMapData();
+    }, []);
+
+    // 2. Load user data
+    useEffect(() => {
         if (!user?.email || allCountries.length === 0) return;
 
-
-
         axios.get(`http://localhost:5000/api/users/${user.email}`)
-
             .then(res => {
-
                 const userData = res.data;
-
-// Populate lists with full country objects based on saved cca3 codes
+                console.log("User data loaded:", userData);
 
                 if (userData.visitedCountries) {
-
-                    const initialVisited = allCountries.filter(c => userData.visitedCountries.includes(c.code3));
-
-                    setVisitedCountries(initialVisited);
-
+                    const visited = allCountries.filter(c =>
+                        userData.visitedCountries.includes(c.code3) ||
+                        userData.visitedCountries.includes(c.ccn3?.toString())
+                    );
+                    setVisitedCountries(visited);
                 }
 
                 if (userData.wishlistCountries) {
-
-                    const initialWishlist = allCountries.filter(c => userData.wishlistCountries.includes(c.code3));
-
-                    setWishlistCountries(initialWishlist);
-
+                    const wishlist = allCountries.filter(c =>
+                        userData.wishlistCountries.includes(c.code3) ||
+                        userData.wishlistCountries.includes(c.ccn3?.toString())
+                    );
+                    setWishlistCountries(wishlist);
                 }
-
             })
-
-            .catch(err => {
-
-                console.error("Failed to fetch user data for map:", err);
-
-            })
-
+            .catch(err => console.error("Failed to load user data:", err))
             .finally(() => {
-
-// Set initial load to false after the first fetch is complete
-
                 setTimeout(() => initialLoad.current = false, 500);
-
             });
+    }, [user?.email, allCountries]);
 
-    }, [user, allCountries]); // Rerun when user or country list is available
-
-
-
-
-
-// Effect 2: Automatically save any changes to the lists to the DB
-
+    // 3. Save to DB on change
     useEffect(() => {
-
-// Prevent running on the initial data load
-
         if (initialLoad.current || !user?.email) return;
 
-
-
-// Map to cca3 for profile lists
-
         const visitedCca3 = visitedCountries.map(c => c.code3);
-
         const wishlistCca3 = wishlistCountries.map(c => c.code3);
-
-
-
-// Map to ccn3 for map coloring
-
         const visitedCcn3 = visitedCountries.map(c => c.ccn3);
-
         const wishlistCcn3 = wishlistCountries.map(c => c.ccn3);
 
-
-
-        console.log('SAVING MAP CHANGES TO DB:', { visitedCca3, wishlistCca3, visitedCcn3, wishlistCcn3 });
-
-
-
-// Send all four arrays to the backend to be saved
-
         axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
-
             visited: visitedCca3,
-
             wishlist: wishlistCca3,
-
-            visitedCcn3: visitedCcn3,
-
-            wishlistCcn3: wishlistCcn3
-
+            visitedCcn3,
+            wishlistCcn3
         })
+            .catch(err => console.error("Failed to save country lists:", err));
+    }, [visitedCountries, wishlistCountries, user?.email]);
 
-            .then(res => console.log('Map lists saved successfully!'))
+    // Improved country name extraction
+    const getCountryName = (feature) => {
+        if (!feature) return null;
 
-            .catch(err => console.error('Failed to save map lists:', err));
+        // Try different property names that might contain the country name
+        const name = feature.properties?.name ||
+            feature.properties?.NAME ||
+            feature.properties?.ADMIN ||
+            feature.properties?.name_long ||
+            feature.properties?.NAME_LONG ||
+            feature.properties?.name_en ||
+            feature.properties?.NAME_EN;
 
+        // If we found a name, return it directly
+        if (name) return name;
 
-
-    }, [visitedCountries, wishlistCountries]); // This effect runs whenever the lists change
-
-
-
-
-
-// --- Handler Functions ---
-
-    const handleCountryClick = (geo) => {
-
-// Find the full country object from our master list using the map ID (ccn3)
-
-        const clickedCountry = allCountries.find(c => c.ccn3 === geo.id);
-
-        if (!clickedCountry) {
-
-            console.warn("Country not found in master list:", geo.properties.name);
-
-            return;
-
+        // If no name found but we have an ID, try to find a matching country
+        if (feature.id) {
+            const matchedCountry = allCountries.find(c =>
+                c.code3 === feature.id ||
+                c.cca3 === feature.id ||
+                c.ccn3 === feature.id
+            );
+            if (matchedCountry) return matchedCountry.name;
         }
 
-
-
-        const isInVisited = visitedCountries.some(c => c.ccn3 === clickedCountry.ccn3);
-
-        const isInWishlist = wishlistCountries.some(c => c.ccn3 === clickedCountry.ccn3);
-
-
-
-// 3-Stage Click Logic
-
-        if (isInVisited) {
-
-// 3rd Click: Remove from Visited
-
-            setVisitedCountries(prev => prev.filter(c => c.ccn3 !== clickedCountry.ccn3));
-
-        } else if (isInWishlist) {
-
-// 2nd Click: Move from Wishlist to Visited
-
-            setWishlistCountries(prev => prev.filter(c => c.ccn3 !== clickedCountry.ccn3));
-
-            setVisitedCountries(prev => [...prev, clickedCountry]);
-
-        } else {
-
-// 1st Click: Add to Wishlist
-
-            setWishlistCountries(prev => [...prev, clickedCountry]);
-
-        }
-
+        // Final fallback
+        return null;
     };
 
+    // Determine polygon color based on country status
+    const getPolygonColor = (feature) => {
+        if (!feature) return "rgba(45, 114, 61, 0.3)"; // Transparent version of #2D723D (30% opacity)
 
+        const countryId = feature.id || feature.properties?.ISO_A3 || feature.properties?.ADM0_A3;
+        const countryName = getCountryName(feature);
 
+        // Check if country is in visited list (yellow) - keep opaque
+        const isVisited = visitedCountries.some(c =>
+            c.ccn3 === countryId ||
+            parseInt(c.ccn3) === parseInt(countryId) ||
+            c.code3 === countryId ||
+            c.cca3 === countryId ||
+            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
+        );
 
+        if (isVisited) return "#f9ff33"; // Opaque yellow
 
-    function handleZoomIn() {
+        // Check if country is in wishlist (orange) - keep opaque
+        const isWishlist = wishlistCountries.some(c =>
+            c.ccn3 === countryId ||
+            parseInt(c.ccn3) === parseInt(countryId) ||
+            c.code3 === countryId ||
+            c.cca3 === countryId ||
+            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
+        );
 
-        if (position.zoom >= 4) return;
+        if (isWishlist) return "orange"; // Opaque orange
 
-        setPosition((pos) => ({ ...pos, zoom: pos.zoom * 2 }));
+        // Default: not selected (green) - now transparent
+        return "rgba(45, 114, 61, 0.3)"; // #2D723D with 30% opacity
+    };
 
-    }
+    // Country click logic
+    const handleCountryClick = (feature) => {
+        if (!feature) return;
 
+        const countryId = feature.id || feature.properties?.ISO_A3 || feature.properties?.ADM0_A3;
+        const countryName = getCountryName(feature);
 
+        let clickedCountry = allCountries.find(c =>
+            c.ccn3 === countryId ||
+            parseInt(c.ccn3) === parseInt(countryId) ||
+            c.code3 === countryId ||
+            c.cca3 === countryId ||
+            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
+        );
 
-    function handleZoomOut() {
+        if (!clickedCountry) {
+            clickedCountry = {
+                name: countryName || `Country ${countryId}`,
+                code3: countryId,
+                ccn3: countryId,
+                cca3: countryId
+            };
+        }
 
-        if (position.zoom <= 1) return;
+        const isInVisited = visitedCountries.some(c =>
+            c.ccn3 === clickedCountry.ccn3 ||
+            c.code3 === clickedCountry.code3 ||
+            c.name === clickedCountry.name
+        );
+        const isInWishlist = wishlistCountries.some(c =>
+            c.ccn3 === clickedCountry.ccn3 ||
+            c.code3 === clickedCountry.code3 ||
+            c.name === clickedCountry.name
+        );
 
-        setPosition((pos) => ({ ...pos, zoom: pos.zoom / 2 }));
-
-    }
-
-
-
-    function handleMoveEnd(position) {
-
-        setPosition(position);
-
-    }
-
-
-
-// --- Create Sets for quick lookups ---
-
-    const visitedIds = new Set(visitedCountries.map(c => c.ccn3));
-
-    const wishlistIds = new Set(wishlistCountries.map(c => c.ccn3));
-
-
+        if (isInVisited) {
+            setVisitedCountries(prev => prev.filter(c =>
+                c.ccn3 !== clickedCountry.ccn3 &&
+                c.code3 !== clickedCountry.code3 &&
+                c.name !== clickedCountry.name
+            ));
+        } else if (isInWishlist) {
+            setWishlistCountries(prev => prev.filter(c =>
+                c.ccn3 !== clickedCountry.ccn3 &&
+                c.code3 !== clickedCountry.code3 &&
+                c.name !== clickedCountry.name
+            ));
+            setVisitedCountries(prev => [...prev, clickedCountry]);
+        } else {
+            setWishlistCountries(prev => [...prev, clickedCountry]);
+        }
+    };
 
     return (
-
-        <div className="Map" style={{
-
-            width: '100%',
-
-            height: '100%',
-
-            display: 'flex',
-
-            flexDirection: 'column',
-
-            justifyContent: 'center',
-
-            alignItems: 'center',
-
-            position: 'relative',
-
-            backgroundColor: 'skyblue'
-
-        }}>
-
-            <Tooltip
-
-                id="country-tooltip"
-
-                style={{ zIndex: 1000 }}
-
-            >
-
-                {content}
-
-            </Tooltip>
-
-
-
-            <div style={{
-
-                width: '1200px',
-
-                borderStyle: "double",
-
-                position: 'fixed',
-
-                zIndex: 1
-
-            }}>
-
-                <ComposableMap>
-
-                    <ZoomableGroup
-
-                        zoom={position.zoom}
-
-                        center={position.coordinates}
-
-                        onMoveEnd={handleMoveEnd}
-
-                    >
-
-                        <Geographies geography={geoUrl}>
-
-                            {({ geographies }) => geographies.map((geo) => {
-
-                                const name = geo.properties.name || geo.properties.NAME || geo.properties.NAME_LONG;
-
-                                const isVisited = visitedIds.has(geo.id);
-
-                                const isWishlist = wishlistIds.has(geo.id);
-
-
-
-                                return (
-
-                                    <Geography
-
-                                        key={geo.rsmKey}
-
-                                        geography={geo}
-
-                                        data-tooltip-id="country-tooltip"
-
-                                        data-tooltip-content={name}
-
-                                        onClick={() => handleCountryClick(geo)} // Call the new click handler
-
-                                        onMouseEnter={() => setContent(name)}
-
-                                        onMouseLeave={() => setContent("")}
-
-                                        stroke="#000000"
-
-                                        style={{
-
-                                            default: {
-
-                                                fill: isVisited ? "#f9ff33" : isWishlist ? "orange" : "#2D723D",
-
-                                                outline: "none",
-
-                                                cursor: "pointer"
-
-                                            },
-
-                                            hover: {
-
-                                                fill: "#96C549",
-
-                                                outline: "none"
-
-                                            },
-
-                                            pressed: {
-
-                                                fill: "#E42"
-
-                                            }
-
-                                        }}
-
-                                    />
-
-                                );
-
-                            })}
-
-                        </Geographies>
-
-                    </ZoomableGroup>
-
-                </ComposableMap>
-
-            </div>
-
-
-
-            {/* Map Legend */}
-
+        <div
+            style={{
+                width: "1200px",
+                height: "700px",
+                position: "relative",
+                margin: "0 auto",
+                border: "2px solid #ddd",
+                background: "#000",
+                overflow: "hidden",
+                borderRadius: "8px"
+            }}
+            onMouseMove={handleMouseMove}
+        >
             <MapLegend />
+            {process.env.NODE_ENV === 'development' && (
+                <div style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    background: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    zIndex: 1000
+                }}>
+                    <div>Visited: {visitedCountries.length}</div>
+                    <div>Wishlist: {wishlistCountries.length}</div>
+                    <div>Countries loaded: {allCountries.length}</div>
+                    <div>Map features: {geoData.features?.length || 0}</div>
+                </div>
+            )}
+            <Globe
+                ref={globeEl}
+                width={1200}
+                height={700}
+                backgroundColor="rgba(0, 0, 0, 0)"
+                showAtmosphere={true}
+                atmosphereColor="rgba(100, 150, 255, 0.4)"
+                atmosphereAltitude={0.35}
+                globeImageUrl={globeImageUrl}
+                polygonsData={geoData.features}
+                polygonCapColor={getPolygonColor}
+                polygonSideColor={() => "rgba(0, 100, 0, 0.15)"}
+                polygonStrokeColor={() => "#111"}
+                onPolygonHover={(polygon) => {
+                    if (polygon) {
+                        console.log("Hovering over:", getCountryName(polygon));
+                    }
+                    setHoveredCountry(polygon);
+                }}
+                onPolygonClick={handleCountryClick}
+                polygonsTransitionDuration={300}
+                enablePointerInteraction={true}
+                waitForGlobeReady={true}
+                animateIn={true}
+            />
 
-
-
-            {/* Zoom Controls */}
-
-            <div style={{
-
-                position: 'absolute',
-
-                top: '20px',
-
-                right: '20px',
-
-                display: 'flex',
-
-                flexDirection: 'column',
-
-                gap: '10px',
-
-                zIndex: 1000
-
-            }}>
-
-                <button
-
-                    onClick={handleZoomIn}
-
+            {hoveredCountry && (
+                <div
                     style={{
-
-                        background: '#ffffff',
-
-                        border: '1px solid #ddd',
-
-                        borderRadius: '4px',
-
-                        padding: '8px 12px',
-
-                        cursor: 'pointer',
-
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-
+                        position: "fixed",
+                        top: mousePos.y + 10,
+                        left: mousePos.x + 10,
+                        background: "rgba(0,0,0,0.8)",
+                        color: "white",
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                        zIndex: 2000,
+                        pointerEvents: "none",
+                        fontFamily: "Arial, sans-serif",
+                        fontSize: "14px",
+                        maxWidth: "200px",
+                        wordWrap: "break-word",
+                        whiteSpace: "nowrap"
                     }}
-
                 >
-
-                    Zoom In
-
-                </button>
-
-                <button
-
-                    onClick={handleZoomOut}
-
-                    style={{
-
-                        background: '#ffffff',
-
-                        border: '1px solid #ddd',
-
-                        borderRadius: '4px',
-
-                        padding: '8px 12px',
-
-                        cursor: 'pointer',
-
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-
-                    }}
-
-                >
-
-                    Zoom Out
-
-                </button>
-
-            </div>
-
+                    {getCountryName(hoveredCountry) || "Unknown Country"}
+                </div>
+            )}
         </div>
-
-    )
-
+    );
 }
-
-
 
 export default MapView;

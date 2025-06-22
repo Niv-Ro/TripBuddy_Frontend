@@ -20,8 +20,10 @@
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
+    "react-globe.gl": "^2.33.2",
     "react-simple-maps": "^3.0.0",
-    "react-tooltip": "^5.29.1"
+    "react-tooltip": "^5.29.1",
+    "three": "^0.177.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
