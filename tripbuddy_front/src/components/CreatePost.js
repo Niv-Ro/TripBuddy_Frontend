@@ -34,7 +34,8 @@ export default function CreatePost({onPostCreated}) {
         try {
             // העלאת כל הקבצים ל-Firebase Storage
             const uploadPromises = files.map(file => {
-                const storageRef = ref(storage, `posts/${user.uid}/${Date.now()}_${file.name}`);
+                const filePath = `posts/${user.uid}/${Date.now()}_${file.name}`;
+                const storageRef = ref(storage, filePath);
                 return uploadBytes(storageRef, file).then(snapshot =>
                     getDownloadURL(snapshot.ref).then(url => ({
                         url: url,
@@ -98,4 +99,5 @@ export default function CreatePost({onPostCreated}) {
             </form>
         </div>
     );
+
 }
