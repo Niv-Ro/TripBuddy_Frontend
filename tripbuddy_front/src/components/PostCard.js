@@ -5,8 +5,9 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import EditPostModal from './EditPostModal';
+import Link from 'next/link';
 
-export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete }) {
+export default function PostCard({ post ,onNavigateToProfile , currentUserMongoId, onUpdate, onDelete }) {
     // --- State and Hooks ---
     const { user } = useAuth(); // User from Firebase Auth for ownership checks
     const [likes, setLikes] = useState(post?.likes || []);
@@ -75,14 +76,23 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
                 <div className="card-header bg-white d-flex align-items-center p-2">
-                    <img src={post.author.profileImageUrl || 'https://i.pravatar.cc/150'} alt={post.author.fullName} className="post-author-img me-2"/>
-                    <div className="d-flex flex-column">
-                        <strong>{post.author.fullName}</strong>
-                        <small className="text-muted">{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</small>
-                    </div>
+                    {/* 🔥 FIX: The author's name and image are wrapped in a Link */}
+                    <Link href={`/users/${post.author._id}`}
+                          className="d-flex align-items-center text-decoration-none text-dark">
+                        <img src={post.author.profileImageUrl || 'default-avatar.png'} alt={post.author.fullName}
+                             className="post-author-img me-2"/>
+                        <div className="d-flex flex-column">
+                            <strong>{post.author.fullName}</strong>
+                            <small
+                                className="text-muted">{formatDistanceToNow(new Date(post.createdAt), {addSuffix: true})}</small>
+                        </div>
+                    </Link>
+
                     {isOwner && (
                         <div className="dropdown ms-auto">
-                            <button className="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false"> ⋮ </button>
+                            <button className="btn btn-light btn-sm" type="button" data-bs-toggle="dropdown"
+                                    aria-expanded="false"> ⋮
+                            </button>
                             <ul className="dropdown-menu dropdown-menu-end">
                                 <li>
                                     <button className="dropdown-item" onClick={() => setIsEditing(true)}>Edit</button>
@@ -101,12 +111,13 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                 <div className="media-container" onClick={() => setFullscreenMedia(currentMedia)}>
                     {currentMedia ? (
                         isVideo ? (
-                            <video src={currentMedia.url} className="post-media" controls />
+                            <video src={currentMedia.url} className="post-media" controls/>
                         ) : (
-                            <img src={currentMedia.url} alt="Post content" className="post-media" />
+                            <img src={currentMedia.url} alt="Post content" className="post-media"/>
                         )
                     ) : (
-                        <div className="post-media d-flex align-items-center justify-content-center text-muted">No media available</div>
+                        <div className="post-media d-flex align-items-center justify-content-center text-muted">No
+                            media available</div>
                     )}
 
                     {hasMultipleMedia && (
@@ -127,7 +138,8 @@ export default function PostCard({ post, currentUserMongoId, onUpdate, onDelete 
                         >
                             ❤️ Like ({likes.length})
                         </button>
-                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({post.comments.length})</button>
+                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({post.comments.length})
+                        </button>
                     </div>
                     <p className="card-text">{post.text}</p>
                     <hr/>
