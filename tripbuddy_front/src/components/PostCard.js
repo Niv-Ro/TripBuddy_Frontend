@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import EditPostModal from './EditPostModal';
-import Link from 'next/link';
+
 
 export default function PostCard({ post ,onNavigateToProfile , currentUserMongoId, onUpdate, onDelete }) {
     // --- State and Hooks ---
@@ -72,13 +72,23 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
         }
     };
 
+    // ✅ FIX: This function now correctly uses post.author._id
+    const handleProfileClick = () => {
+        if (onNavigateToProfile) {
+            onNavigateToProfile(post.author._id); // Use post.author._id
+        }
+    }
+
     return (
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
                 <div className="card-header bg-white d-flex align-items-center p-2">
-                    {/* 🔥 FIX: The author's name and image are wrapped in a Link */}
-                    <Link href={`/users/${post.author._id}`}
-                          className="d-flex align-items-center text-decoration-none text-dark">
+                    {/* ✅ FIX: Replaced <Link> with a clickable <div> that calls handleProfileClick */}
+                    <div
+                        onClick={handleProfileClick}
+                        className="d-flex align-items-center text-decoration-none text-dark"
+                        style={{ cursor: 'pointer' }}
+                    >
                         <img src={post.author.profileImageUrl || 'default-avatar.png'} alt={post.author.fullName}
                              className="post-author-img me-2"/>
                         <div className="d-flex flex-column">
@@ -86,7 +96,7 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                             <small
                                 className="text-muted">{formatDistanceToNow(new Date(post.createdAt), {addSuffix: true})}</small>
                         </div>
-                    </Link>
+                    </div>
 
                     {isOwner && (
                         <div className="dropdown ms-auto">
@@ -138,7 +148,7 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                         >
                             ❤️ Like ({likes.length})
                         </button>
-                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({post.comments.length})
+                        <button className="btn btn-outline-secondary btn-sm">💬 Comment ({comments.length})
                         </button>
                     </div>
                     <p className="card-text">{post.text}</p>

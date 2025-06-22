@@ -11,7 +11,7 @@ import Feed from "@/app/feed/page";
 const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
     <nav
         className="bg-light border-end d-flex flex-column p-3 align-items-center"
-        style={{ width: '220px', height: '100vh', flexShrink: 0 }}
+        style={{ width: '220px', height: '100vh', flexShrink: 0, position: 'sticky', top: 0 }}
     >
         <div>
             <h2 className="mb-1">Travel Buddy</h2>
@@ -50,7 +50,7 @@ const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
 
 export default function MainScreenPage() {
     const { mongoUser } = useAuth();
-    const [view, setView] = useState('feed');
+    const [view, setView] = useState('profile'); // Start with profile view
     // This state will hold the ID of the profile we want to display
     const [viewedUserId, setViewedUserId] = useState(null);
 
@@ -72,7 +72,6 @@ export default function MainScreenPage() {
     let Content;
     switch (view) {
         case 'feed':
-            // 🔥 FIX: Pass the navigation function to the Feed
             Content = <Feed onNavigateToProfile={navigateToProfile} />;
             break;
         case 'map':
@@ -82,7 +81,7 @@ export default function MainScreenPage() {
             Content = <Chats />;
             break;
         case 'profile':
-            // The Profile component now receives the userId to display
+            // The Profile component now receives the userId and navigation function
             // We use a 'key' to force React to re-mount the component when the ID changes
             Content = viewedUserId ? <Profile key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
             break;
@@ -91,11 +90,11 @@ export default function MainScreenPage() {
     }
 
     return (
-        <div className="d-flex" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <div className="d-flex" style={{ height: '100vh', overflow: 'hidden' }}>
             <Sidebar setView={setView} navigateToProfile={navigateToProfile} currentUserId={mongoUser?._id} />
-            <div className="flex-grow-1" style={{ height: '100vh', overflowY: 'auto' }}>
+            <main className="flex-grow-1" style={{minWidth: 0, overflowY: 'auto'}}>
                 {Content}
-            </div>
+            </main>
         </div>
     );
 }
