@@ -14,6 +14,7 @@ import ProfileCountryLists from "./ProfileCountryLists";
 import UserPostFeed from "./UserPostFeed";
 import DangerZone from "./DangerZone";
 import EditProfileModal from "./EditProfileModal";
+import StatsModal from "./StatsModal"; // ADD THIS IMPORT
 
 // --- Skeleton Component (for loading state) ---
 const ProfileSkeleton = () => (
@@ -57,6 +58,9 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
     const [bioInput, setBioInput] = useState('');
     const [profileImageInput, setProfileImageInput] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+
+    // ADD ONLY THIS ONE STATE FOR STATS
+    const [isShowingStats, setIsShowingStats] = useState(false);
 
     const fetchProfileData = useCallback(() => {
         if (!userId) { setLoading(false); return; }
@@ -243,6 +247,7 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                     setProfileImageInput(null);
                     setIsEditingProfile(true);
                 }}
+                onShowStats={() => setIsShowingStats(true)}
             />
 
             <ProfileCountryLists
@@ -281,6 +286,13 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                         processFiles([e.target.files[0]], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
                     }
                 }}
+            />
+
+            <StatsModal
+                isOpen={isShowingStats}
+                onClose={() => setIsShowingStats(false)}
+                userId={userId}
+                isOwnProfile={isOwnProfile}
             />
 
             <FollowListModal

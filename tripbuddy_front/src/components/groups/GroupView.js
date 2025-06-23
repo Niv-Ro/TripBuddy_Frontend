@@ -91,8 +91,26 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             setIsJoining(false);
         }
     };
-    const handleLeaveGroup = async () => { /* ... לוגיקת עזיבת קבוצה ... */ };
+    const handleLeaveGroup = async () => {
+        if (!mongoUser || !group) return;
 
+        const confirmMessage = isAdmin
+            ? "As admin, leaving will assign a new admin or delete the group if you are the last member. Are you sure?"
+            : "Are you sure you want to leave this group?";
+
+        if (!window.confirm(confirmMessage)) return;
+
+        setIsLeaving(true);
+        try {
+            await axios.post(`http://localhost:5000/api/groups/${group._id}/leave`, { userId: mongoUser._id });
+            alert("You have successfully left the group.");
+            onBack(); // חזרה לדף הקודם לאחר העזיבה
+        } catch (error) {
+            alert(error.response?.data?.message || "Could not leave the group.");
+        } finally {
+            setIsLeaving(false);
+        }
+    };
     const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
     const pendingJoinRequests = useMemo(() => group?.members.filter(m => m.status === 'pending_approval') || [], [group]);
     const isAdmin = useMemo(() => mongoUser && group && group.admin?._id === mongoUser._id, [group, mongoUser]);

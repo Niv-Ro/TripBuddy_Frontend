@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,7 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
     const [comments, setComments] = useState(post.comments || []);
     const [newComment, setNewComment] = useState('');
     const [editingComment, setEditingComment] = useState(null);
+    const [commentSearchTerm, setCommentSearchTerm] = useState('');
 
     const isOwner = user && post.author.firebaseUid && user.uid === post.author.firebaseUid;
     const isLikedByCurrentUser = currentUserMongoId ? likes.includes(currentUserMongoId) : false;
@@ -34,6 +35,21 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
             require('bootstrap/dist/js/bootstrap.bundle.min.js');
         }
     }, []);
+
+    // Filter comments based on search term
+    const filteredComments = useMemo(() => {
+        if (!commentSearchTerm.trim()) {
+            return comments;
+        }
+
+        const searchLower = commentSearchTerm.toLowerCase();
+        return comments.filter(comment =>
+                comment && comment.author && (
+                    comment.text?.toLowerCase().includes(searchLower) ||
+                    comment.author.fullName?.toLowerCase().includes(searchLower)
+                )
+        );
+    }, [comments, commentSearchTerm]);
 
     const taggedCountryObjects = post.taggedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean);
 
@@ -73,6 +89,10 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
             setComments(prev => prev.map(c => c._id === updatedComment._id ? updatedComment : c));
             setEditingComment(null);
         } catch (error) { alert("Could not update comment."); }
+    };
+
+    const clearSearch = () => {
+        setCommentSearchTerm('');
     };
 
     return (
@@ -126,27 +146,68 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
                         </div>
                     )}
                     <hr/>
+
+                    {/* Comments Search Section */}
+                    {comments.length > 0 && (
+                        <div className="mb-3">
+                            <div className="input-group input-group-sm">
+                                <span className="input-group-text">
+                                    <i className="bi bi-search"></i>
+                                    🔍
+                                </span>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Search comments..."
+                                    value={commentSearchTerm}
+                                    onChange={(e) => setCommentSearchTerm(e.target.value)}
+                                />
+                                {commentSearchTerm && (
+                                    <button
+                                        className="btn btn-outline-secondary"
+                                        type="button"
+                                        onClick={clearSearch}
+                                        title="Clear search"
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+                            {commentSearchTerm && (
+                                <small className="text-muted">
+                                    Showing {filteredComments.length} of {comments.length} comments
+                                </small>
+                            )}
+                        </div>
+                    )}
+
                     <div className="comments-section">
-                        {comments.map(comment => (
-                            comment && comment.author && (
-                                <div key={comment._id} className="d-flex mb-2">
-                                    <img src={comment.author.profileImageUrl || 'default-avatar.png'} alt={comment.author.fullName} className="post-author-img me-2" width="25" height="25"/>
-                                    <div className="flex-grow-1">
-                                        <strong>{comment.author.fullName}</strong>
-                                        <p className="mb-0 small">{comment.text}</p>
-                                    </div>
-                                    {currentUserMongoId === comment.author._id && (
-                                        <div className="dropdown">
-                                            <button className="btn btn-light btn-sm py-0 px-2" type="button" data-bs-toggle="dropdown">⋮</button>
-                                            <ul className="dropdown-menu dropdown-menu-end">
-                                                <li><button className="dropdown-item" onClick={() => setEditingComment(comment)}>Edit</button></li>
-                                                <li><button className="dropdown-item text-danger" onClick={() => handleDeleteComment(comment._id)}>Delete</button></li>
-                                            </ul>
+                        {filteredComments.length === 0 && commentSearchTerm ? (
+                            <div className="text-muted text-center py-2">
+                                <small>No comments found matching "{commentSearchTerm}"</small>
+                            </div>
+                        ) : (
+                            filteredComments.map(comment => (
+                                comment && comment.author && (
+                                    <div key={comment._id} className="d-flex mb-2">
+                                        <img src={comment.author.profileImageUrl || 'default-avatar.png'} alt={comment.author.fullName} className="post-author-img me-2" width="25" height="25"/>
+                                        <div className="flex-grow-1">
+                                            <strong>{comment.author.fullName}</strong>
+                                            <p className="mb-0 small">{comment.text}</p>
                                         </div>
-                                    )}
-                                </div>
-                            )
-                        ))}
+                                        {currentUserMongoId === comment.author._id && (
+                                            <div className="dropdown">
+                                                <button className="btn btn-light btn-sm py-0 px-2" type="button" data-bs-toggle="dropdown">⋮</button>
+                                                <ul className="dropdown-menu dropdown-menu-end">
+                                                    <li><button className="dropdown-item" onClick={() => setEditingComment(comment)}>Edit</button></li>
+                                                    <li><button className="dropdown-item text-danger" onClick={() => handleDeleteComment(comment._id)}>Delete</button></li>
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            ))
+                        )}
                     </div>
                     <form className="d-flex mt-2" onSubmit={handleCommentSubmit}>
                         <input type="text" className="form-control form-control-sm" placeholder="Add a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} />
@@ -155,7 +216,6 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
                 </div>
             </div>
 
-            {/* ✅ תיקון נקודתי: שימוש בקלאסים מה-CSS שלך והסרת בלוק ה-style */}
             {fullscreenMedia && (
                 <div className="fullscreen-viewer" onClick={() => setFullscreenMedia(null)}>
                     <button className="close-btn" onClick={() => setFullscreenMedia(null)}>&times;</button>

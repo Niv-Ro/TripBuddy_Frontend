@@ -9,7 +9,8 @@ export default function ProfileHeader({
                                           getAge,
                                           onFollowToggle,
                                           onOpenFollowModal,
-                                          onEdit
+                                          onEdit,
+                                          onShowStats
                                       }) {
     return (
         <nav className="navbar navbar-light border-bottom py-3 px-4">
@@ -47,9 +48,12 @@ export default function ProfileHeader({
                     </div>
                 </div>
                 {isOwnProfile && (
-                    <div style={{ position: "absolute", top: 0, right: 0 }}>
-                        <button className="btn btn-outline-primary" onClick={onEdit}>
+                    <div className="d-flex flex-column" style={{position: "absolute", top: 0, right: 0}}>
+                        <button className="btn btn-outline-primary mb-2"  onClick={onEdit}>
                             Edit Profile
+                        </button>
+                        <button className="btn btn-outline-success" onClick={onShowStats}>
+                             Stats
                         </button>
                     </div>
                 )}

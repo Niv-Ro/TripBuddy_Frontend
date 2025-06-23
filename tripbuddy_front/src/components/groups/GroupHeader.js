@@ -18,7 +18,7 @@ export default function GroupHeader({ group, isAdmin, isMember, onBack, onInvite
                 </div>
             </div>
             <div className="d-flex gap-2">
-                {isMember && !isAdmin && <button className="btn btn-warning" onClick={onLeave} disabled={isLeaving}>{isLeaving ? "Leaving..." : "Leave Group"}</button>}
+                {isMember &&  <button className="btn btn-warning" onClick={onLeave} disabled={isLeaving}>{isLeaving ? "Leaving..." : "Leave Group"}</button>}
                 {isAdmin && <button className="btn btn-outline-primary" onClick={onInvite} disabled={isDeleting || isLeaving}>{isInviting ? 'Cancel Invite' : 'Invite Member'}</button>}
                 {isAdmin && <button className="btn btn-danger" onClick={onDelete} disabled={isDeleting}>{isDeleting ? 'Deleting...' : 'Delete Group'}</button>}
             </div>
