@@ -5,9 +5,9 @@ import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import { useParams } from 'next/navigation'; // 🔥 FIX 1: Import the correct hook
 import useCountries from "@/hooks/useCountries.js";
-import PostCard from "@/components/PostCard";
-import CountryList from "@/components/CountryList"; // Ensure path is correct
-import CountrySearch from "@/components/CountrySearch"; // Ensure path is correct
+import PostCard from "@/components/post/PostCard";
+import CountryList from "@/components/profile/CountryList"; // Ensure path is correct
+import CountrySearch from "@/components/profile/CountrySearch"; // Ensure path is correct
 import '@/styles/Style.css';
 
 const ProfileSkeleton = () => (
@@ -97,7 +97,7 @@ export default function UserProfilePage() {
     function getAge(dateString) { if (!dateString) return ''; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) { age--; } return age; }
 
     if (loading) return <ProfileSkeleton />;
-    if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
+    if (!profileData || profileData.error) return <div className="p-4 text-danger">ProfilePage not found.</div>;
 
     const finalVisited = isOwnProfile ? visitedCountries : (profileData.visitedCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
     const finalWishlist = isOwnProfile ? wishlistCountries : (profileData.wishlistCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
@@ -107,7 +107,7 @@ export default function UserProfilePage() {
             <nav className="navbar navbar-light border-bottom py-3 px-4">
                 <div className="d-flex align-items-center w-100">
                     <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
-                        <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
+                        <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="ProfilePage" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
                     </div>
                     <div className="ms-4">
                         <h1 className="py-2 mb-1">{profileData.fullName}</h1>

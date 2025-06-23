@@ -1,13 +1,16 @@
+'use client';
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import useCountries from '../hooks/useCountries.js';
-import Link from 'next/link'; // 1. מייבאים את Link, אין צורך ב-useRouter כאן
+import useCountries from '../../hooks/useCountries.js';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useFileProcessor } from '../../hooks/useFileProcessor.js';
 
 const SignUpForm = ({ onSubmit }) => {
-    // --- State and Hooks ---
     const router = useRouter();
-    const [profileImage, setProfileImage] = useState(null);
+    const countries = useCountries();
+    const { processFiles, processedFiles, isProcessing } = useFileProcessor();
+
     const [profileImagePreview, setProfileImagePreview] = useState("");
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
@@ -16,18 +19,18 @@ const SignUpForm = ({ onSubmit }) => {
     const [birthDate, setBirthDate] = useState("");
     const [countryOrigin, setCountryOrigin] = useState("");
     const [gender, setGender] = useState("");
-    const countries = useCountries();
 
-    // -- handlers --
     const handleImageChange = e => {
         if (e.target.files && e.target.files[0]) {
-            setProfileImage(e.target.files[0]); // Keep the file, not URL
-            setProfileImagePreview(URL.createObjectURL(e.target.files[0])); // For UI preview
+            const file = e.target.files[0];
+            setProfileImagePreview(URL.createObjectURL(file));
+            processFiles([file], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
         }
     };
 
     const handleSubmit = async e => {
         e.preventDefault();
+        const profileImage = processedFiles.length > 0 ? processedFiles[0] : null;
         await onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
         router.push('/');
     };
@@ -43,14 +46,24 @@ const SignUpForm = ({ onSubmit }) => {
                             borderRadius: "50%",
                             overflow: "hidden",
                             display: "inline-block",
+                            position: "relative"
                         }}>
                             <img
                                 src={profileImagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                                 alt="Profile"
                                 width={80}
                                 height={80}
-                                style={{objectFit: "cover"}}
+                                style={{
+                                    objectFit: "cover",
+                                    filter: isProcessing ? 'blur(2px) brightness(0.7)' : 'none',
+                                    transition: 'filter 0.3s ease'
+                                }}
                             />
+                            {isProcessing && (
+                                <div className="spinner-border text-light" role="status" style={{position: 'absolute', top: 'calc(50% - 1rem)', left: 'calc(50% - 1rem)'}}>
+                                    <span className="visually-hidden">Loading...</span>
+                                </div>
+                            )}
                         </div>
                     </label>
                     <input
@@ -59,6 +72,7 @@ const SignUpForm = ({ onSubmit }) => {
                         accept="image/*"
                         style={{display: 'none'}}
                         onChange={handleImageChange}
+                        disabled={isProcessing}
                     />
                 </div>
 
@@ -145,10 +159,12 @@ const SignUpForm = ({ onSubmit }) => {
                     </select>
                 </div>
 
-                <button type="submit" className="btn btn-primary w-100 mb-3">Register</button>
+                <button type="submit" className="btn btn-primary w-100 mb-3" disabled={isProcessing}>
+                    {isProcessing ? 'Processing Image...' : 'Register'}
+                </button>
             </form>
 
-            <Link href="/" className="btn btn-secondary">
+            <Link href="/tripbuddy_front/public" className="btn btn-secondary">
                 Sign In
             </Link>
         </div>

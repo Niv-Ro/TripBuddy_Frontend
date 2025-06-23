@@ -4,14 +4,18 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries.js";
-import PostCard from "@/components/PostCard";
-import CountryList from "./CountryList";
-import CountrySearch from "./CountrySearch";
-import '../styles/Style.css';
 import { storage } from "@/services/fireBase.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import FollowListModal from './FollowListModal';
+import { useFileProcessor } from "@/hooks/useFileProcessor"; // ✅ 1. ייבוא ה-Hook
 
+import FollowListModal from './FollowListModal';
+import ProfileHeader from "./ProfileHeader";
+import ProfileCountryLists from "./ProfileCountryLists";
+import UserPostFeed from "./UserPostFeed";
+import DangerZone from "./DangerZone";
+import EditProfileModal from "./EditProfileModal";
+
+// --- Skeleton Component (for loading state) ---
 const ProfileSkeleton = () => (
     <div className="p-4 opacity-50" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
         <div className="navbar navbar-light border-bottom py-3 px-4">
@@ -27,26 +31,32 @@ const ProfileSkeleton = () => (
     </div>
 );
 
-export default function Profile({ userId, onNavigateToProfile }) {
-    const { mongoUser, refetchMongoUser } = useAuth();
+// --- Main Page Component ---
+export default function ProfilePage({ userId, onNavigateToProfile }) {
+    const { mongoUser, refetchMongoUser, user } = useAuth(); // ✅ הוספת user מה-Context
     const allCountries = useCountries();
+    const { processFiles, processedFiles, isProcessing: isCompressing } = useFileProcessor(); // ✅ 2. שימוש ב-Hook
 
     const [profileData, setProfileData] = useState(null);
     const [userPosts, setUserPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isClient, setIsClient] = useState(false);
+
     const [visitedCountries, setVisitedCountries] = useState([]);
     const [wishlistCountries, setWishlistCountries] = useState([]);
     const [addingToList, setAddingToList] = useState(null);
     const initialLoad = useRef(true);
+
     const isOwnProfile = mongoUser?._id === userId;
     const [isFollowing, setIsFollowing] = useState(false);
+
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isFollowModalOpen, setIsFollowModalOpen] = useState(false);
+    const [modalData, setModalData] = useState({ title: '', list: [] });
+
     const [bioInput, setBioInput] = useState('');
     const [profileImageInput, setProfileImageInput] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalData, setModalData] = useState({ title: '', list: [] });
 
     const fetchProfileData = useCallback(() => {
         if (!userId) { setLoading(false); return; }
@@ -65,9 +75,12 @@ export default function Profile({ userId, onNavigateToProfile }) {
                 return axios.get(`http://localhost:5000/api/posts/user/${userId}`);
             })
             .then(postRes => { setUserPosts(postRes.data); })
-            .catch(err => { setProfileData({ error: true }); })
+            .catch(err => {
+                console.error("Failed to fetch profile data", err);
+                setProfileData({ error: true });
+            })
             .finally(() => { setLoading(false); });
-    }, [userId, mongoUser?._id, allCountries, isOwnProfile]);
+    }, [userId, mongoUser?._id, allCountries.length, isOwnProfile]);
 
     useEffect(() => {
         setIsClient(true);
@@ -88,7 +101,7 @@ export default function Profile({ userId, onNavigateToProfile }) {
         }).then(() => {
             refetchMongoUser();
         }).catch(err => console.error("Failed to save lists", err));
-    }, [visitedCountries, wishlistCountries]);
+    }, [visitedCountries, wishlistCountries, isOwnProfile, mongoUser, refetchMongoUser]);
 
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
@@ -130,29 +143,42 @@ export default function Profile({ userId, onNavigateToProfile }) {
         setIsSaving(true);
         try {
             let profileImageUrl = profileData.profileImageUrl;
-            if (profileImageInput) {
+
+            const imageToUpload = processedFiles.length > 0 ? processedFiles[0] : null;
+
+            if (imageToUpload && user?.uid && mongoUser?.email) {
                 if (profileImageUrl && profileImageUrl.includes("firebase")) {
                     try { await deleteObject(ref(storage, profileImageUrl)); } catch (err) { console.warn("Old image deletion failed:", err.message); }
                 }
-                const imageRef = ref(storage, `profileImages/${mongoUser._id}_${Date.now()}`);
-                await uploadBytes(imageRef, profileImageInput);
+
+                const userFullName = mongoUser.fullName.replace(/\s+/g, '_');
+                const userEmail = mongoUser.email;
+                const imageRef = ref(storage, `profile_images/${userFullName}_(${userEmail})`);
+
+                await uploadBytes(imageRef, imageToUpload);
                 profileImageUrl = await getDownloadURL(imageRef);
             }
+
             await axios.put(`http://localhost:5000/api/users/${userId}/bio`, { bio: bioInput, profileImageUrl });
+
             await refetchMongoUser();
             fetchProfileData();
             setIsEditingProfile(false);
-        } catch (err) { alert('Failed to update profile'); }
-        setIsSaving(false);
+        } catch (err) {
+            console.error("Failed to update profile", err);
+            alert('Failed to update profile');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const openFollowModal = (type) => {
         if (type === 'followers' && profileData?.followers) {
             setModalData({ title: 'Followers', list: profileData.followers });
-            setIsModalOpen(true);
+            setIsFollowModalOpen(true);
         } else if (type === 'following' && profileData?.following) {
             setModalData({ title: 'Following', list: profileData.following });
-            setIsModalOpen(true);
+            setIsFollowModalOpen(true);
         }
     };
 
@@ -165,70 +191,101 @@ export default function Profile({ userId, onNavigateToProfile }) {
         } catch (error) { console.error("Failed to unfollow from modal", error); }
     };
 
-    function getAge(dateString) { if (!dateString) return ''; const today = new Date(); const birthDate = new Date(dateString); let age = today.getFullYear() - birthDate.getFullYear(); const m = today.getMonth() - birthDate.getMonth(); if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) { age--; } return age; }
+    const handleDeleteProfile = async () => {
+        if (!isOwnProfile || !mongoUser) return;
+        const confirmationText = 'DELETE MY ACCOUNT';
+        const promptMessage = `This action is irreversible. It will delete your profile, posts, comments, and all associated data permanently.\n\nPlease type "${confirmationText}" to confirm.`;
+        const userInput = window.prompt(promptMessage);
+
+        if (userInput === confirmationText) {
+            try {
+                await axios.delete(`http://localhost:5000/api/users/${mongoUser._id}`, {
+                    data: { firebaseUid: mongoUser.firebaseUid }
+                });
+                alert("Your account has been deleted successfully.");
+                window.location.href = '/login';
+            } catch (error) {
+                console.error("Failed to delete account:", error);
+                alert("An error occurred while deleting your account. Please try again.");
+            }
+        } else if (userInput !== null) {
+            alert("Account deletion cancelled.");
+        }
+    };
+
+    function getAge(dateString) {
+        if (!dateString) return '';
+        const today = new Date();
+        const birthDate = new Date(dateString);
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }
 
     if (loading) return <ProfileSkeleton />;
     if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
 
     return (
         <div>
-            <nav className="navbar navbar-light border-bottom py-3 px-4">
-                <div className="d-flex align-items-start w-100 position-relative">
-                    <div style={{width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0}}>
-                        <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="Profile" style={{width: '100%', height: '100%', objectFit: "cover"}} />
-                    </div>
-                    <div className="ms-4 flex-grow-1">
-                        <div className="d-flex align-items-center mb-2" style={{gap: 16}}>
-                            <h1 className="mb-0" style={{fontSize: '2.1rem',color: 'black',textShadow: '0 0 3px #000000'}}>{profileData.fullName}</h1>
-                            {!isOwnProfile && mongoUser && (<button className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'} ms-3`} onClick={handleFollowToggle}>{isFollowing ? 'Unfollow' : 'Follow'}</button>)}
-                        </div>
-                        <div className="d-flex align-items-center" style={{gap: '1.5rem', cursor: 'pointer'}}>
-                            <span className="text-muted" onClick={() => openFollowModal('followers')}><strong>{profileData.followers?.length || 0}</strong> Followers</span>
-                            <span className="text-muted" onClick={() => openFollowModal('following')}><strong>{profileData.following?.length || 0}</strong> Following</span>
-                        </div>
-                        <div className="d-flex flex-wrap mt-2" style={{gap: '1.5rem'}}>
-                            <span><b>Country:</b> {profileData.countryOrigin}</span>
-                            <span><b>Gender:</b> {profileData.gender}</span>
-                            <span><b>Age:</b> {isClient ? getAge(profileData.birthDate) : '...'}</span>
-                        </div>
-                        <h5 className="fw-bold mb-2 my-2">Bio</h5>
-                        <div className="border rounded bg-light p-2" style={{ minHeight: 60, maxHeight: 100, maxWidth: 400, overflowY: 'auto' }}>
-                            <p style={{whiteSpace: 'pre-line', marginBottom: 0}}>{profileData.bio || (isOwnProfile ? "Add something about yourself..." : "No bio yet.")}</p>
-                        </div>
-                    </div>
-                    {isOwnProfile && (<div style={{position: "absolute", top: 0, right: 0}}><button className="btn btn-outline-primary" onClick={() => { setBioInput(profileData.bio || ''); setProfileImageInput(null); setIsEditingProfile(true); }}>Edit Profile</button></div>)}
-                </div>
-            </nav>
+            <ProfileHeader
+                profileData={profileData}
+                isOwnProfile={isOwnProfile}
+                isFollowing={isFollowing}
+                isClient={isClient}
+                getAge={getAge}
+                onFollowToggle={handleFollowToggle}
+                onOpenFollowModal={openFollowModal}
+                onEdit={() => {
+                    setBioInput(profileData.bio || '');
+                    setProfileImageInput(null);
+                    setIsEditingProfile(true);
+                }}
+            />
 
-            <div className="p-3 border-bottom">
-                <CountryList title="Countries Visited" countries={visitedCountries} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('visited')} onRemove={handleRemoveCountry}/>
-                <CountryList title="My Wishlist" countries={wishlistCountries} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('wishlist')} onRemove={handleRemoveCountry}/>
-            </div>
+            <ProfileCountryLists
+                isOwnProfile={isOwnProfile}
+                visitedCountries={visitedCountries}
+                wishlistCountries={wishlistCountries}
+                addingToList={addingToList}
+                allCountries={allCountries}
+                onAddRequest={setAddingToList}
+                onRemove={handleRemoveCountry}
+                onSelectCountry={handleAddCountry}
+                onCancelAdd={() => setAddingToList(null)}
+            />
 
-            {isOwnProfile && addingToList && ( <CountrySearch allCountries={allCountries} existingCodes={addingToList === 'visited' ? visitedCountries.map(c => c.code) : wishlistCountries.map(c => c.code)} onSelectCountry={handleAddCountry} onCancel={() => setAddingToList(null)}/>)}
+            <UserPostFeed
+                posts={userPosts}
+                profileName={profileData.fullName}
+                currentUserMongoId={mongoUser?._id}
+                onUpdatePost={handleUpdatePost}
+                onDeletePost={handleDeletePost}
+                onNavigateToProfile={onNavigateToProfile}
+            />
 
-            <div className="p-4">
-                <h3 className="mb-3">Posts by {profileData.fullName}</h3>
-                {userPosts.map(post => ( <PostCard key={post._id} post={post} currentUserMongoId={mongoUser?._id} onUpdate={handleUpdatePost} onDelete={handleDeletePost} onNavigateToProfile={onNavigateToProfile}/>))}
-            </div>
+            {isOwnProfile && <DangerZone onDeleteProfile={handleDeleteProfile} />}
 
-            {isOwnProfile && isEditingProfile && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <button className="modal-close-btn" onClick={() => setIsEditingProfile(false)}>&times;</button>
-                        <h5>Edit Profile</h5>
-                        <label className="form-label mt-3">Bio</label>
-                        <textarea className="form-control mb-3" rows="3" value={bioInput} onChange={e => setBioInput(e.target.value)} />
-                        <label className="form-label">Profile Picture</label>
-                        <input type="file" className="form-control mb-3" accept="image/*" onChange={e => setProfileImageInput(e.target.files[0])} />
-                        <button className="btn btn-primary" onClick={handleEditProfileSave} disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</button>
-                    </div>
-                </div>
-            )}
+            <EditProfileModal
+                isOpen={isEditingProfile}
+                onClose={() => setIsEditingProfile(false)}
+                onSave={handleEditProfileSave}
+                isSaving={isSaving || isCompressing}
+                bioInput={bioInput}
+                onBioChange={(e) => setBioInput(e.target.value)}
+                onImageChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                        setProfileImageInput(e.target.files[0]); // Keep original file for the hook
+                        processFiles([e.target.files[0]], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
+                    }
+                }}
+            />
 
             <FollowListModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isFollowModalOpen}
+                onClose={() => setIsFollowModalOpen(false)}
                 title={modalData.title}
                 list={modalData.list}
                 isOwnProfile={isOwnProfile}

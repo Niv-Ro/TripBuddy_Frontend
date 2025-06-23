@@ -3,20 +3,18 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries";
-import CreatePost from "@/components/CreatePost";
-import PostCard from "@/components/PostCard";
+import CreatePost from "@/components/post/CreatePost";
+import PostCard from "@/components/post/PostCard";
 
 export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
     const [allPosts, setAllPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    // State for pagination
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-    // State for filters
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCountry, setSelectedCountry] = useState('all');
 
@@ -24,7 +22,7 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
     const allCountries = useCountries();
 
     const fetchPosts = useCallback((pageToFetch) => {
-        if (!mongoUser) return;
+        if (!mongoUser?._id) return;
 
         if (pageToFetch === 1) {
             setIsLoading(true);
@@ -41,23 +39,23 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
             })
             .catch(err => {
                 console.error("Failed to fetch posts:", err);
-                setHasMore(false); // Stop trying to fetch if there's an error
+                setHasMore(false);
             })
             .finally(() => {
                 setIsLoading(false);
                 setIsLoadingMore(false);
             });
-    }, [mongoUser]);
+    }, [mongoUser?._id]);
 
-    // Effect for the initial data load
     useEffect(() => {
-        setAllPosts([]);
-        setPage(1);
-        setHasMore(true);
-        fetchPosts(1);
-    }, [fetchPosts]);
+        if (mongoUser?._id) { // טען רק אם המשתמש זוהה
+            setAllPosts([]);
+            setPage(1);
+            setHasMore(true);
+            fetchPosts(1);
+        }
+    }, [mongoUser?._id]); // הסרנו את התלות ב-fetchPosts כדי למנוע לולאות מיותרות
 
-    // Intersection Observer logic for infinite scroll
     const observer = useRef();
     const lastPostRef = useCallback(node => {
         if (isLoadingMore) return;
@@ -70,12 +68,11 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
         if (node) observer.current.observe(node);
     }, [isLoadingMore, hasMore]);
 
-    // Effect to fetch more posts when page number changes
     useEffect(() => {
         if (page > 1) {
             fetchPosts(page);
         }
-    }, [page, fetchPosts]);
+    }, [page]); // הפונקציה fetchPosts כבר לא תשתנה לעיתים קרובות
 
     const handlePostCreated = () => {
         setIsCreateModalOpen(false);
@@ -106,21 +103,23 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
     };
 
     const filteredPosts = useMemo(() => {
+        if (!Array.isArray(allPosts)) return [];
+
         return allPosts
             .filter(post => {
-                if (selectedCountry === 'all') {
-                    return true;
-                }
+                if (selectedCountry === 'all') return true;
                 return post.taggedCountries?.includes(selectedCountry);
             })
             .filter(post => {
+                if (!searchTerm) return true;
                 return post.text.toLowerCase().includes(searchTerm.toLowerCase());
             });
     }, [allPosts, selectedCountry, searchTerm]);
 
     const filterOptions = useMemo(() => {
         if (!mongoUser || !allCountries.length) return [];
-        return mongoUser.wishlistCountries?.map(code =>
+        // ✅ התיקון: הוספת הגנה למקרה שהשדה לא קיים באובייקט
+        return (mongoUser.wishlistCountries || []).map(code =>
             allCountries.find(c => c.code3 === code)
         ).filter(Boolean);
     }, [mongoUser, allCountries]);
@@ -141,7 +140,7 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
                 >
-                    <option value="all">All Posts</option>
+                    <option value="all">All Wishlist Countries</option>
                     {filterOptions.map(country => (
                         <option key={country.code3} value={country.code3}>
                             {country.name}
@@ -160,31 +159,20 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
                     <p className="text-center text-muted">Loading posts...</p>
                 ) : filteredPosts.length > 0 ? (
                     filteredPosts.map((post, index) => {
+                        const postCard = (
+                            <PostCard
+                                post={post}
+                                currentUserMongoId={mongoUser?._id}
+                                onUpdate={handleUpdatePost}
+                                onDelete={handleDeletePost}
+                                onNavigateToProfile={onNavigateToProfile}
+                                onNavigateToCountry={onNavigateToCountry}
+                            />
+                        );
                         if (filteredPosts.length === index + 1) {
-                            return (
-                                <div ref={lastPostRef} key={post._id}>
-                                    <PostCard
-                                        post={post}
-                                        currentUserMongoId={mongoUser?._id}
-                                        onUpdate={handleUpdatePost}
-                                        onDelete={handleDeletePost}
-                                        onNavigateToProfile={onNavigateToProfile}
-                                        onNavigateToCountry={onNavigateToCountry}
-                                    />
-                                </div>
-                            );
+                            return <div ref={lastPostRef} key={post._id}>{postCard}</div>;
                         } else {
-                            return (
-                                <PostCard
-                                    key={post._id}
-                                    post={post}
-                                    currentUserMongoId={mongoUser?._id}
-                                    onUpdate={handleUpdatePost}
-                                    onDelete={handleDeletePost}
-                                    onNavigateToProfile={onNavigateToProfile}
-                                    onNavigateToCountry={onNavigateToCountry}
-                                />
-                            );
+                            return <div key={post._id}>{postCard}</div>;
                         }
                     })
                 ) : (

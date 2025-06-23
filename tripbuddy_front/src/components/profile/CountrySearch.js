@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import '../styles/Style.css';
+import '../../styles/Style.css';
 
 function CountrySearch({ allCountries, existingCodes, onSelectCountry, onCancel }) {
     // --- State and Hooks ---

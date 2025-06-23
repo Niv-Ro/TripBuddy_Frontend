@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
-import UserSearch from './UserSearch';
+import UserSearch from '../groups/UserSearch';
 
 function NewChat({ onChatCreated }) {
     const { mongoUser } = useAuth();

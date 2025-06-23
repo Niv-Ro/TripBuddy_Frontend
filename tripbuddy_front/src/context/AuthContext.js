@@ -12,61 +12,75 @@ export const AuthProvider = ({ children }) => {
     const [mongoUser, setMongoUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUserFromDB = useCallback(async (email) => {
+    const fetchUserFromDB = useCallback(async (email, retryCount = 0) => {
         try {
             const res = await axios.get(`http://localhost:5000/api/users/${email}`);
             const freshMongoUser = res.data;
             setMongoUser(freshMongoUser);
-            localStorage.setItem('mongoUser', JSON.stringify(freshMongoUser));
+            console.log('✅ Successfully fetched user from DB:', email);
         } catch (error) {
-            console.error("AuthContext: Failed to fetch user from DB. Logging out.", error);
+            if (error.response?.status === 404 && retryCount < 3) {
+                // נסה שוב אחרי delay מצטבר
+                const delay = (retryCount + 1) * 500; // 500ms, 1s, 1.5s
+                console.log(`User not found, retry ${retryCount + 1}/3 in ${delay}ms`);
+
+                setTimeout(() => {
+                    fetchUserFromDB(email, retryCount + 1);
+                }, delay);
+                return;
+            }
+
+            if (error.response?.status === 404) {
+                console.log("User not found in DB after 3 retries - this might be normal for new registrations");
+                return;
+            }
+
+            console.error("AuthContext: Failed to fetch user from DB.", error);
             await firebaseSignOut(auth);
         }
     }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            setLoading(true);
-            if (firebaseUser?.email) {
+            console.log('Firebase auth state changed:', firebaseUser?.email || 'No user');
+
+            if (firebaseUser) {
                 setUser(firebaseUser);
-                await fetchUserFromDB(firebaseUser.email);
+
+                // רק אם אין mongoUser, תבצע fetch
+                if (!mongoUser) {
+                    console.log('Fetching MongoDB user for:', firebaseUser.email);
+                    await fetchUserFromDB(firebaseUser.email);
+                } else {
+                    console.log('MongoDB user already exists:', mongoUser.email);
+                }
             } else {
+                console.log('No Firebase user - clearing state');
                 setUser(null);
                 setMongoUser(null);
-                localStorage.removeItem('mongoUser');
             }
             setLoading(false);
         });
         return () => unsubscribe();
-    }, [fetchUserFromDB]);
-
-    const login = async (email) => {
-        setLoading(true);
-        await fetchUserFromDB(email);
-        setLoading(false);
-    };
+    }, [fetchUserFromDB]); // הסרתי mongoUser מה-dependencies למניעת loops
 
     const logout = async () => {
         await firebaseSignOut(auth);
     };
 
-    // ✅ הפונקציה המרכזית לסנכרון מחדש מכל מקום באפליקציה
     const refetchMongoUser = useCallback(async () => {
-        if (mongoUser?.email) {
-            console.log("Refetching user data from context...");
-            setLoading(true);
-            await fetchUserFromDB(mongoUser.email);
-            setLoading(false);
+        if (user?.email) {
+            await fetchUserFromDB(user.email);
         }
-    }, [mongoUser, fetchUserFromDB]);
+    }, [user, fetchUserFromDB]);
 
     const value = {
         user,
         mongoUser,
         loading,
-        login,
         logout,
-        refetchMongoUser // חשיפת הפונקציה לסנכרון
+        refetchMongoUser,
+        setMongoUser // חשיפת הפונקציה החשובה הזו
     };
 
     return (

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
-import UserSearch from './UserSearch';
+import UserSearch from '../groups/UserSearch';
 
 function MessageBubble({ msg, isOwnMessage, onEdit, onDelete, otherUser }) {
     const [isHovered, setIsHovered] = useState(false);

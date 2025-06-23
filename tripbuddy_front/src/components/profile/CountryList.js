@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import '../styles/Style.css';
+import '../../styles/Style.css';
 
 // The component now receives an 'isOwnProfile' prop
 export default function CountryList({ title, countries, onAddRequest, onRemove, isOwnProfile }) {

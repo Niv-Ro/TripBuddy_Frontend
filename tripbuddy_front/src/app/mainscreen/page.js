@@ -2,13 +2,13 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { handleSignOut } from "@/services/auth/SignOut_handle.js";
-import Profile from "@/components/Profile";
-import MapView from "@/components/MapView";
-import Chats from "@/components/Chats";
+import ProfilePage from "@/components/profile/ProfilePage";
+import MapView from "@/components/map/MapView";
+import Chats from "@/components/chat/ChatPage";
 import Feed from "@/app/feed/page";
-import UserSearch from "@/components/UserSearch";
-import GroupsPage from "@/components/GroupsPage";
-import GroupView from "@/components/GroupView";
+import UserSearch from "@/components/groups/UserSearch";
+import GroupsPage from "@/components/groups/GroupsPage";
+import GroupView from "@/components/groups/GroupView";
 
 
 const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId}) => (
@@ -143,7 +143,7 @@ export default function MainScreenPage() {
             Content = <Chats />;
             break;
         case 'profile':
-            Content = viewedUserId ? <Profile key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
+            Content = viewedUserId ? <ProfilePage key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
             break;
         case 'search':
             Content = <UserSearch onUserSelect={navigateToProfile} />;
