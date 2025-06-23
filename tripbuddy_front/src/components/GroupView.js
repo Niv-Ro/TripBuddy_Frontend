@@ -9,7 +9,6 @@ import useCountries from '@/hooks/useCountries';
 
 export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const { mongoUser } = useAuth();
-    const allCountries = useCountries();
     const [group, setGroup] = useState(null);
     const [posts, setPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -22,23 +21,27 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const fetchGroupData = useCallback(() => {
         if (!groupId) return;
         setIsLoading(true);
-        Promise.all([
-            axios.get(`http://localhost:5000/api/groups/${groupId}`),
-            axios.get(`http://localhost:5000/api/posts/group/${groupId}`)
-        ]).then(([groupRes, postsRes]) => {
-            setGroup(groupRes.data);
-            setPosts(postsRes.data);
-        }).catch(err => {
-            console.error("Failed to load group data", err);
-            setGroup(null);
-        }).finally(() => setIsLoading(false));
+        const fetchGroupDetails = axios.get(`http://localhost:5000/api/groups/${groupId}`);
+        const fetchGroupPosts = axios.get(`http://localhost:5000/api/posts/group/${groupId}`);
+        Promise.all([fetchGroupDetails, fetchGroupPosts])
+            .then(([groupRes, postsRes]) => {
+                setGroup(groupRes.data);
+                setPosts(postsRes.data);
+            })
+            .catch(err => { console.error("Failed to load group data", err); setGroup(null); })
+            .finally(() => setIsLoading(false));
     }, [groupId]);
 
     useEffect(() => { fetchGroupData(); }, [fetchGroupData]);
 
     const handlePostCreated = () => { setIsCreateModalOpen(false); fetchGroupData(); };
-    const handleUpdatePost = (updatedPost) => setPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p));
-    const handleDeletePost = async (postId) => { if (window.confirm("Delete this post?")) { await axios.delete(`http://localhost:5000/api/posts/${postId}`); fetchGroupData(); } };
+    const handleUpdatePost = (updatedPost) => { setPosts(prev => prev.map(p => p._id === updatedPost._id ? updatedPost : p)); };
+    const handleDeletePost = async (postId) => {
+        if (window.confirm("Are you sure?")) {
+            await axios.delete(`http://localhost:5000/api/posts/${postId}`);
+            fetchGroupData();
+        }
+    };
     const handleInviteUser = async (userToInvite) => {
         if (!mongoUser || !group) return;
         try {
@@ -76,32 +79,37 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     };
     const handleDeleteGroup = async () => {
         if (!mongoUser || !group || !isAdmin) return;
-        if (!window.confirm(`Are you sure you want to delete "${group.name}"? This action is permanent.`)) return;
+        const confirmMessage = `Are you sure you want to delete "${group.name}"?\nThis action is permanent.`;
+        if (!window.confirm(confirmMessage)) return;
         setIsDeleting(true);
         try {
             await axios.delete(`http://localhost:5000/api/groups/${group._id}`, { data: { adminId: mongoUser._id } });
             alert("Group deleted successfully.");
             onBack();
-        } catch (error) {
-            alert(error.response?.data?.message || "Could not delete group.");
-        } finally {
-            setIsDeleting(false);
-        }
+        } catch (error) { alert(error.response?.data?.message || "Could not delete group."); } finally { setIsDeleting(false); }
     };
     const handleLeaveGroup = async () => {
         if (!mongoUser || !group) return;
-        const confirmMessage = isAdmin ? "As admin, leaving will assign a new admin or delete the group if you are the last member. Are you sure?" : "Are you sure you want to leave this group?";
+
+        let confirmMessage;
+        if (isAdmin) {
+            const otherMembers = approvedMembers.filter(m => m.user._id !== mongoUser._id);
+            if (otherMembers.length === 0) {
+                confirmMessage = "You are the only member in this group. Leaving will delete the group permanently. Are you sure?";
+            } else {
+                confirmMessage = "As the admin, a new admin will be automatically assigned when you leave. Are you sure?";
+            }
+        } else {
+            confirmMessage = "Are you sure you want to leave this group?";
+        }
+
         if (!window.confirm(confirmMessage)) return;
         setIsLeaving(true);
         try {
             await axios.post(`http://localhost:5000/api/groups/${group._id}/leave`, { userId: mongoUser._id });
-            alert("You have left the group.");
+            alert("You have successfully left the group.");
             onBack();
-        } catch (error) {
-            alert(error.response?.data?.message || "Could not leave group.");
-        } finally {
-            setIsLeaving(false);
-        }
+        } catch (error) { alert(error.response?.data?.message || "Could not leave group."); } finally { setIsLeaving(false); }
     };
 
     const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
@@ -109,7 +117,8 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const isAdmin = useMemo(() => mongoUser && group && group.admin?._id === mongoUser._id, [group, mongoUser]);
     const isMember = useMemo(() => mongoUser && approvedMembers.some(member => member.user?._id === mongoUser._id), [approvedMembers, mongoUser]);
     const hasPendingRequest = useMemo(() => mongoUser && group && group.members.some(m => m.user?._id === mongoUser._id && m.status === 'pending_approval'), [group, mongoUser]);
-    const canViewContent = isMember || (group && group.isPrivate === false);
+
+    const canViewContent = isMember || (group && !group.isPrivate);
 
     if (isLoading) return <p className="text-center p-5">Loading group...</p>;
     if (!group) return <div className="text-center p-5"><h4>Group Not Found</h4><button className="btn btn-secondary" onClick={onBack}>← Back</button></div>;
@@ -119,12 +128,15 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             <nav className="bg-light border-bottom p-3 d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center">
                     <button className="btn btn-secondary me-3" onClick={onBack}>←</button>
-                    <div><h3 className="mb-1">{group.name}</h3><p className="mb-0 text-muted small">{group.description}</p></div>
+                    <div>
+                        <h3 className="mb-1">{group.name}</h3>
+                        <p className="mb-0 text-muted small">{group.description}</p>
+                    </div>
                 </div>
                 <div className="d-flex gap-2">
-                    {isMember && !isAdmin && <button className="btn btn-warning" onClick={handleLeaveGroup} disabled={isLeaving}>{isLeaving ? "Leaving..." : "Leave Group"}</button>}
-                    {isAdmin && <button className="btn btn-outline-primary" onClick={() => setIsInviting(prev => !prev)} disabled={isDeleting || isLeaving}>{isInviting ? 'Cancel Invite' : 'Invite Member'}</button>}
-                    {isAdmin && <button className="btn btn-warning" onClick={handleLeaveGroup} disabled={isLeaving}>{isLeaving ? "Leaving..." : "Leave (as Admin)"}</button>}
+                    {/* Show leave button for all members (including admin) */}
+                    {isMember && <button className="btn btn-warning" onClick={handleLeaveGroup} disabled={isLeaving}>{isLeaving ? "Leaving..." : "Leave Group"}</button>}
+                    {isAdmin && <button className="btn btn-outline-primary" onClick={() => setIsInviting(prev => !prev)} disabled={isDeleting || isLeaving}>{isInviting ? 'Cancel Invite' : 'Invite'}</button>}
                     {isAdmin && <button className="btn btn-danger" onClick={handleDeleteGroup} disabled={isDeleting}>{isDeleting ? 'Deleting...' : 'Delete Group'}</button>}
                 </div>
             </nav>
@@ -132,17 +144,16 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             <div className="container-fluid py-4">
                 <div className="row">
                     <div className="col-md-8">
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <h4 className="mb-0">Group Feed</h4>
+                            {isMember ? (<button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>+ New Post</button>)
+                                : (canViewContent && !hasPendingRequest && <button className="btn btn-success" onClick={handleRequestToJoin} disabled={isJoining}>{isJoining ? "Joining..." : "Join Group"}</button>)}
+                        </div>
+                        <hr />
                         {canViewContent ? (
-                            <>
-                                <div className="d-flex justify-content-between align-items-center mb-3">
-                                    <h4 className="mb-0">Group Feed</h4>
-                                    {isMember ? (<button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>+ New Post</button>)
-                                        : (<button className="btn btn-success" onClick={handleRequestToJoin} disabled={isJoining}>{isJoining ? "Joining..." : "Join Group"}</button>)}
-                                </div>
-                                <hr />
-                                {posts.length > 0 ? (posts.map(post => <PostCard key={post._id} post={post} currentUserMongoId={mongoUser?._id} onUpdate={handleUpdatePost} onDelete={handleDeletePost} onNavigateToProfile={onNavigateToProfile} />))
-                                    : (<p>No posts in this group yet.</p>)}
-                            </>
+                            posts.length > 0 ? (
+                                posts.map(post => <PostCard key={post._id} post={post} onUpdate={handleUpdatePost} onDelete={handleDeletePost} onNavigateToProfile={onNavigateToProfile} currentUserMongoId={mongoUser?._id} />)
+                            ) : (<p>This group has no posts yet.</p>)
                         ) : (
                             <div className="text-center p-5">
                                 <h4>This is a private group.</h4>

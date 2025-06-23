@@ -18,11 +18,24 @@ export default function GroupSearch({ onViewGroup }) {
         }
         setIsLoading(true);
         try {
-            // שולחים לשרת את הפרמטרים הנכונים לפי הלוגיקה שבנית
-            const params = {
-                q: searchQuery,
-                searchType: type
-            };
+            // ✅ תיקון: שליחת פרמטרים נכונים בהתאם ל-searchType
+            const params = {};
+
+            if (type === 'name' || type === 'all') {
+                params.q = searchQuery;
+            }
+            if (type === 'admin') {
+                params.adminName = searchQuery;
+            }
+            if (type === 'country') {
+                params.country = searchQuery;
+            }
+            if (type === 'all') {
+                // במקרה של חיפוש כללי, נשלח את כל הפרמטרים
+                params.adminName = searchQuery;
+                params.country = searchQuery;
+            }
+
             const res = await axios.get(`http://localhost:5000/api/groups/search`, { params });
             setResults(res.data);
         } catch (err) {
@@ -59,7 +72,6 @@ export default function GroupSearch({ onViewGroup }) {
             <div className="col-lg-3 col-md-6 col-sm-12 mb-4">
                 <div className="card h-100 shadow-sm hover-shadow" style={{ cursor: 'pointer', transition: 'all 0.3s ease' }} onClick={() => onViewGroup(group._id)}>
                     <div style={{ height: '200px', overflow: 'hidden' }}>
-                        {/* ✅ התיקון: שימוש ב-ui-avatars כתמונת ברירת מחדל אמינה */}
                         <img
                             src={group.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random&color=fff&size=200`}
                             alt={group.name}
@@ -70,7 +82,6 @@ export default function GroupSearch({ onViewGroup }) {
                                 objectFit: 'cover'
                             }}
                             onError={(e) => {
-                                // Fallback נוסף למקרה שגם ui-avatars נכשל
                                 e.target.src = 'https://via.placeholder.com/200/e9ecef/6c757d?text=Image';
                             }}
                         />
