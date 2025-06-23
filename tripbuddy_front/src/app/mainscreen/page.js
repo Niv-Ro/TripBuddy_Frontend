@@ -34,7 +34,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                         <span className="mt-1">Feed</span>
                     </div>
                 </button>
-                <button className="btn mb-2 text-start" onClick={() => navigateToGroups()}>
+                <button className="btn mb-2 text-start" onClick={navigateToGroups}>
                     <div className="d-inline-flex flex-column align-items-center">
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="3" fill="#fff"/>
@@ -110,24 +110,29 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
 
 export default function MainScreenPage() {
     const {mongoUser} = useAuth();
-    const [view, setView] = useState('feed'); // Start with profile view
-    // This state will hold the ID of the profile we want to display
+    const [view, setView] = useState('feed');
     const [viewedUserId, setViewedUserId] = useState(null);
     const [viewedCountryCode, setViewedCountryCode] = useState(null)
-
     const [viewedGroupId, setViewedGroupId] = useState(null);
 
     useEffect(() => {
-        if (mongoUser && !viewedUserId) {
+        // This effect sets the initial profile to the logged-in user's profile
+        if (mongoUser && view !== 'profile') {
             setViewedUserId(mongoUser._id);
         }
-    }, [mongoUser, viewedUserId]);
+    }, [mongoUser]);
 
-    // This function will be passed down to children components
-    const navigateToProfile = (userId) => {
-        if (userId) {
-            setViewedUserId(userId);
+    // ✅ --- התיקון המרכזי נמצא כאן ---
+    // This function can now handle both a string ID and a user object
+    const navigateToProfile = (data) => {
+        // 'data' can be either a string ID (from the sidebar) or a user object (from search)
+        const idToView = (typeof data === 'object' && data !== null) ? data._id : data;
+
+        if (idToView) {
+            setViewedUserId(idToView);
             setView('profile');
+        } else {
+            console.error("Navigation to profile failed: ID is missing or invalid.", data);
         }
     };
 
@@ -140,7 +145,7 @@ export default function MainScreenPage() {
 
     const navigateToGroups = () => {
         setView('groups');
-        setViewedGroupId(null); // אפס את ה-ID כשחוזרים לרשימה
+        setViewedGroupId(null);
     };
 
     const navigateToGroupView = (groupId) => {
@@ -163,7 +168,8 @@ export default function MainScreenPage() {
             Content = viewedUserId ? <Profile key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
             break;
         case 'search':
-            Content = <UserSearch onNavigateToProfile={navigateToProfile} />;
+            // The prop name MUST be 'onUserSelect' as expected by the UserSearch component
+            Content = <UserSearch onUserSelect={navigateToProfile} />;
             break;
         case 'groups':
             Content = <GroupsPage onViewGroup={navigateToGroupView} />;
@@ -177,7 +183,12 @@ export default function MainScreenPage() {
 
     return (
         <div className="d-flex" style={{ height: '100vh', overflow: 'hidden' }}>
-            <Sidebar setView={setView} navigateToProfile={navigateToProfile} navigateToGroups={navigateToGroups} currentUserId={mongoUser?._id} />
+            <Sidebar
+                setView={setView}
+                navigateToProfile={navigateToProfile}
+                navigateToGroups={navigateToGroups}
+                currentUserId={mongoUser?._id}
+            />
             <main className="flex-grow-1" style={{minWidth: 0, overflowY: 'auto'}}>
                 {Content}
             </main>

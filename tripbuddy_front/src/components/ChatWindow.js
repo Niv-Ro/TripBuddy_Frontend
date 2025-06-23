@@ -2,17 +2,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
-import io from 'socket.io-client';
 
-const ENDPOINT = "http://localhost:5000";
+// 🔥 הסרנו את io מה-import ואת ENDPOINT. הרכיב כבר לא מנהל חיבור.
 
-function ChatWindow({ chat, onBack }) {
+function ChatWindow({ chat, socket, onBack }) { // 🔥 קבלת ה-socket כ-prop
     const { mongoUser } = useAuth();
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const socketRef = useRef();
     const messagesEndRef = useRef(null);
 
     // טעינת היסטוריית ההודעות
@@ -25,17 +23,16 @@ function ChatWindow({ chat, onBack }) {
             .finally(() => setIsLoading(false));
     }, [chat]);
 
-    // ניהול חיבור ה-socket
+    // ניהול הצטרפות לחדר והאזנה להודעות
     useEffect(() => {
-        if (!mongoUser) return;
+        // ודא שה-socket והצ'אט קיימים לפני השימוש בהם
+        if (!socket || !chat?._id) return;
 
-        socketRef.current = io(ENDPOINT);
-        const socket = socketRef.current;
-
-        socket.emit('setup', mongoUser._id);
+        // הצטרפות לחדר של הצ'אט הספציפי
         socket.emit('join chat', chat._id);
 
         const handleNewMessage = (newMessageReceived) => {
+            // המאזין הזה מטפל רק בעדכון ההודעות של הצ'אט הפתוח
             if (newMessageReceived.chat._id === chat._id) {
                 setMessages(prevMessages => [...prevMessages, newMessageReceived]);
             }
@@ -43,17 +40,15 @@ function ChatWindow({ chat, onBack }) {
 
         socket.on('message received', handleNewMessage);
 
-        // פונקציית ניקוי חשובה
+        // פונקציית ניקוי מסירה רק את המאזין של הרכיב הזה
         return () => {
             socket.off('message received', handleNewMessage);
-            socket.disconnect();
         };
-    }, [chat, mongoUser]);
+    }, [chat, socket]); // ה-useEffect תלוי כעת ב-socket שהועבר כ-prop
 
     const sendMessage = async (e) => {
         e.preventDefault();
-        if (newMessage.trim() === "" || !mongoUser) return;
-        const socket = socketRef.current;
+        if (newMessage.trim() === "" || !mongoUser || !socket) return;
 
         try {
             const messageData = {
@@ -65,6 +60,7 @@ function ChatWindow({ chat, onBack }) {
 
             const { data: savedMessage } = await axios.post('http://localhost:5000/api/messages', messageData);
 
+            // השתמש ב-socket שהועבר כדי לשדר את ההודעה
             socket.emit('new message', savedMessage);
             setMessages(prev => [...prev, savedMessage]);
         } catch (error) {
@@ -72,7 +68,6 @@ function ChatWindow({ chat, onBack }) {
         }
     };
 
-    // גלילה אוטומטית לתחתית
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);

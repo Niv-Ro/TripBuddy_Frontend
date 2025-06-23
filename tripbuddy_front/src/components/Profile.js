@@ -67,7 +67,7 @@ export default function Profile({ userId, onNavigateToProfile }) {
                 if (userData.followers && mongoUser) {
                     setFollowersCount(userData.followers.length);
                     // Check if the logged-in user's ID is in the followers list
-                    setIsFollowing(userData.followers.includes(mongoUser._id));
+                    setIsFollowing(userData.followers.some(follower => follower._id === mongoUser._id));
                 }
 
                 // If it's our own profile, initialize the editable state lists from the fetched data
