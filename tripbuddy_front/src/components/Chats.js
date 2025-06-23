@@ -2,92 +2,95 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import axios from 'axios';
-// נצטרך רכיבים נפרדים להצגת כל סוג צ'אט
-// import PrivateChatWindow from "./PrivateChatWindow";
-// import GroupChatWindow from "./GroupChatWindow";
+import NewChat from './NewChat';
+import ChatWindow from "./ChatWindow";
 
-export default function Chats() {
-    const { mongoUser } = useAuth();
-    const [searchTerm, setSearchTerm] = useState('');
-
-    // ✅ State דינמי שיגיע מהשרת
+function Chats() {
+    const { mongoUser, loading } = useAuth();
     const [conversations, setConversations] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    // ✅ State שינהל איזה צ'אט פעיל כרגע
-    const [activeChat, setActiveChat] = useState(null); // למשל: { id: '...', name: '...', type: 'group' }
+    const [activeChat, setActiveChat] = useState(null);
+    const [view, setView] = useState('list');
+    const [isComponentLoading, setIsComponentLoading] = useState(true);
 
     useEffect(() => {
-        // ✅ השרת יצטרך לספק נקודת קצה שמאחדת את כל השיחות של המשתמש
-        // (גם פרטיות וגם קבוצתיות)
-        if (mongoUser) {
-            axios.get(`/api/chats/my-conversations`)
-                .then(res => {
-                    setConversations(res.data);
-                    setIsLoading(false);
-                })
-                .catch(err => console.error("Failed to fetch conversations", err));
+        const fetchChats = () => {
+            if (mongoUser) {
+                setIsComponentLoading(true);
+                // 🔥 שינוי: הוספנו את ה-ID של המשתמש לכתובת ה-URL
+                axios.get(`http://localhost:5000/api/chats/my-chats/${mongoUser._id}`)
+                    .then(res => {
+                        setConversations(res.data);
+                    })
+                    .catch(err => console.error("Failed to fetch conversations", err))
+                    .finally(() => setIsComponentLoading(false));
+            } else {
+                setIsComponentLoading(false);
+            }
+        };
+
+        // קריאה לפונקציה רק אחרי ש-AuthContext סיים לטעון
+        if (!loading) {
+            fetchChats();
         }
-    }, [mongoUser]);
+    }, [mongoUser, loading]);
 
-    const filteredConversations = conversations.filter(chat =>
-        chat.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const getChatName = (chat) => {
+        if (!mongoUser || !chat.members) return "Chat";
+        if (chat.isGroupChat) return chat.name;
+        const otherUser = chat.members.find(m => m.user?._id !== mongoUser._id);
+        return otherUser?.user?.fullName || "Chat";
+    };
 
-    // אם לא נבחר צ'אט, הצג את רשימת השיחות
-    if (!activeChat) {
-        return (
-            <div className="d-flex flex-column" style={{ height: '100vh' }}>
-                <nav className="bg-white border-bottom shadow-sm p-3 d-flex align-items-center">
-                    <h2 className="me-4 mb-0">Chats</h2>
-                    <input
-                        type="text"
-                        placeholder="Search conversations..."
-                        className="form-control w-50 mx-auto"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    {/* אפשר להוסיף כאן כפתור ליצירת צ'אט חדש */}
-                </nav>
+    const handleChatCreated = (newChat) => {
+        if (!conversations.some(c => c._id === newChat._id)) {
+            setConversations(prev => [newChat, ...prev]);
+        }
+        setActiveChat(newChat);
+        setView('chat');
+    };
 
-                <div className="flex-grow-1 overflow-y-auto p-4">
-                    {isLoading ? <p>Loading chats...</p> : (
-                        <div className="list-group">
-                            {filteredConversations.map((chat) => (
-                                <button
-                                    key={chat.id} // ה-ID יכול להיות ID של קבוצה או ID של משתמש אחר
-                                    type="button"
-                                    className="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-                                    onClick={() => setActiveChat(chat)}
-                                >
-                                    <div>
-                                        {chat.type === 'group' && '👥 '} {/* אייקון לקבוצה */}
-                                        {chat.name}
+    const renderMainContent = () => {
+        if (view === 'new') {
+            return <NewChat onChatCreated={handleChatCreated} />;
+        }
+        if (view === 'chat' && activeChat) {
+            // 🔥 2. החלפת ממלא המקום ברכיב האמיתי
+            return <ChatWindow chat={activeChat} onBack={() => setActiveChat(null)} />;
+        }
+        return <div className="p-5 text-center text-muted">Select a conversation to start chatting.</div>;
+    };
+
+    if (loading) return <p className="p-5 text-center">Authenticating...</p>;
+
+    return (
+        <div className="d-flex" style={{ height: 'calc(100vh - 60px)' }}>
+            <div className="border-end d-flex flex-column" style={{ width: '350px' }}>
+                <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h4 className="mb-0">Chats</h4>
+                    <button className="btn btn-primary btn-sm" onClick={() => { setView('new'); setActiveChat(null); }}>+ New Chat</button>
+                </div>
+                <div className="flex-grow-1 overflow-auto">
+                    {isComponentLoading ? <p className="p-3">Loading chats...</p> : (
+                        <div className="list-group list-group-flush">
+                            {conversations.map(chat => (
+                                <button key={chat._id} type="button"
+                                        className={`list-group-item list-group-item-action text-start ${activeChat?._id === chat._id ? 'active' : ''}`}
+                                        onClick={() => { setActiveChat(chat); setView('chat'); }}>
+                                    <div className="d-flex w-100 justify-content-between">
+                                        <h6 className="mb-1">{getChatName(chat)}</h6>
                                     </div>
-                                    {/* אפשר להוסיף כאן חיווי להודעות שלא נקראו */}
-                                    <span className="badge text-bg-primary rounded-pill">3</span>
+                                    <small className="text-muted">{chat.latestMessage?.content || 'No messages yet'}</small>
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
-        );
-    }
-
-    // אם נבחר צ'אט, הצג את חלון הצ'אט המתאים
-    return (
-        <div className="d-flex flex-column" style={{ height: '100vh' }}>
-            {/* כאן נציג את חלון הצ'אט עצמו */}
-            {/* לדוגמה: */}
-            {/* {activeChat.type === 'group'
-                ? <GroupChatWindow chatInfo={activeChat} onBack={() => setActiveChat(null)} />
-                : <PrivateChatWindow chatInfo={activeChat} onBack={() => setActiveChat(null)} />
-            } */}
-            <p>
-                Displaying {activeChat.type} chat with "{activeChat.name}".
-                <button onClick={() => setActiveChat(null)} className="btn btn-link">Back to list</button>
-            </p>
+            <div className="flex-grow-1 bg-light">
+                {renderMainContent()}
+            </div>
         </div>
     );
 }
+
+export default Chats;

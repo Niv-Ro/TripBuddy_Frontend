@@ -24,6 +24,7 @@
     "react-globe.gl": "^2.33.2",
     "react-simple-maps": "^3.0.0",
     "react-tooltip": "^5.29.1",
+    "socket.io-client": "^4.8.1",
     "three": "^0.177.0"
   },
   "devDependencies": {
