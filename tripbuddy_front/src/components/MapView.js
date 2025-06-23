@@ -8,6 +8,7 @@ import useCountries from "@/hooks/useCountries";
 const globeImageUrl = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
 const bumpImageUrl = "https://unpkg.com/three-globe/example/img/earth-topology.png";
 
+
 const MapLegend = () => (
     <div style={{
         position: 'absolute', bottom: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.9)',
@@ -37,7 +38,7 @@ const MapLegend = () => (
 );
 
 function MapView() {
-    const { user } = useAuth();
+    const { user, mongoUser } = useAuth();
     const allCountries = useCountries();
     const [visitedCountries, setVisitedCountries] = useState([]);
     const [wishlistCountries, setWishlistCountries] = useState([]);
@@ -114,21 +115,22 @@ function MapView() {
 
     // 3. Save to DB on change
     useEffect(() => {
-        if (initialLoad.current || !user?.email) return;
+        if (initialLoad.current || !mongoUser?._id) return; // שינוי התנאי
 
         const visitedCca3 = visitedCountries.map(c => c.code3);
         const wishlistCca3 = wishlistCountries.map(c => c.code3);
         const visitedCcn3 = visitedCountries.map(c => c.ccn3);
         const wishlistCcn3 = wishlistCountries.map(c => c.ccn3);
 
-        axios.put(`http://localhost:5000/api/users/${user.email}/country-lists`, {
+        // ✅ שינוי מ-user.email ל-mongoUser._id
+        axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
             visited: visitedCca3,
             wishlist: wishlistCca3,
             visitedCcn3,
             wishlistCcn3
         })
             .catch(err => console.error("Failed to save country lists:", err));
-    }, [visitedCountries, wishlistCountries, user?.email]);
+    }, [visitedCountries, wishlistCountries, mongoUser?._id]); // עדכון dependencies
 
     // Improved country name extraction
     const getCountryName = (feature) => {

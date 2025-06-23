@@ -1,5 +1,5 @@
 'use client';
-import { useState, createContext, useContext, useEffect } from "react";
+import { useState, createContext, useContext, useEffect, useCallback } from "react";
 import axios from "axios";
 import { auth } from "@/services/fireBase";
 import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
@@ -12,29 +12,24 @@ export const AuthProvider = ({ children }) => {
     const [mongoUser, setMongoUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const fetchUserFromDB = useCallback(async (email) => {
+        try {
+            const res = await axios.get(`http://localhost:5000/api/users/${email}`);
+            const freshMongoUser = res.data;
+            setMongoUser(freshMongoUser);
+            localStorage.setItem('mongoUser', JSON.stringify(freshMongoUser));
+        } catch (error) {
+            console.error("AuthContext: Failed to fetch user from DB. Logging out.", error);
+            await firebaseSignOut(auth);
+        }
+    }, []);
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setLoading(true);
-            if (firebaseUser) {
+            if (firebaseUser?.email) {
                 setUser(firebaseUser);
-                const cachedMongoUser = localStorage.getItem('mongoUser');
-                if (cachedMongoUser) {
-                    setMongoUser(JSON.parse(cachedMongoUser));
-                }
-                try {
-                    // ✅ התיקון: הסרנו את /email מהנתיב
-                    const res = await axios.get(`http://localhost:5000/api/users/${firebaseUser.email}`);
-                    const freshMongoUser = res.data;
-                    setMongoUser(freshMongoUser);
-                    localStorage.setItem('mongoUser', JSON.stringify(freshMongoUser));
-                } catch (error) {
-                    console.error("Failed to fetch mongo user on auth state change. This can happen on first sign-up.", error);
-                    // נקה את המידע כדי למנוע חוסר התאמה
-                    setUser(null);
-                    setMongoUser(null);
-                    localStorage.removeItem('mongoUser');
-                    await firebaseSignOut(auth); // מומלץ לנתק את המשתמש אם אין לו רשומה ב-DB
-                }
+                await fetchUserFromDB(firebaseUser.email);
             } else {
                 setUser(null);
                 setMongoUser(null);
@@ -43,37 +38,27 @@ export const AuthProvider = ({ children }) => {
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [fetchUserFromDB]);
 
     const login = async (email) => {
         setLoading(true);
-        try {
-            // ✅ התיקון: הסרנו את /email מהנתיב
-            const res = await axios.get(`http://localhost:5000/api/users/${email}`);
-            setMongoUser(res.data);
-            localStorage.setItem('mongoUser', JSON.stringify(res.data));
-        } catch (error) {
-            console.error("Failed to login", error);
-        } finally {
-            setLoading(false);
-        }
+        await fetchUserFromDB(email);
+        setLoading(false);
     };
 
     const logout = async () => {
         await firebaseSignOut(auth);
-        setUser(null);
-        setMongoUser(null);
-        localStorage.removeItem('mongoUser');
     };
 
-    const updateMongoUser = (updatedFields) => {
-        setMongoUser(prevUser => {
-            if (!prevUser) return null;
-            const newUser = { ...prevUser, ...updatedFields };
-            localStorage.setItem('mongoUser', JSON.stringify(newUser));
-            return newUser;
-        });
-    };
+    // ✅ הפונקציה המרכזית לסנכרון מחדש מכל מקום באפליקציה
+    const refetchMongoUser = useCallback(async () => {
+        if (mongoUser?.email) {
+            console.log("Refetching user data from context...");
+            setLoading(true);
+            await fetchUserFromDB(mongoUser.email);
+            setLoading(false);
+        }
+    }, [mongoUser, fetchUserFromDB]);
 
     const value = {
         user,
@@ -81,12 +66,11 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         logout,
-        updateMongoUser
+        refetchMongoUser // חשיפת הפונקציה לסנכרון
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {/* התיקון הקודם נשאר - מציגים תמיד את הילדים */}
             {children}
         </AuthContext.Provider>
     );
