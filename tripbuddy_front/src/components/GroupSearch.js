@@ -1,15 +1,53 @@
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import debounce from 'lodash.debounce';
 import useCountries from '@/hooks/useCountries';
 
 export default function GroupSearch({ onViewGroup }) {
     const [query, setQuery] = useState('');
-    const [searchType, setSearchType] = useState('all');
+    const [searchType, setSearchType] = useState('name');
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const allCountries = useCountries();
+
+    // Create a mapping of country names to codes for easier lookup
+    const countryNameToCode = useMemo(() => {
+        const mapping = {};
+        allCountries.forEach(country => {
+            // Map both full name and partial matches
+            mapping[country.name.toLowerCase()] = country.code;
+            // Also map common variations
+            const words = country.name.toLowerCase().split(' ');
+            words.forEach(word => {
+                if (word.length > 2) { // Only for words longer than 2 characters
+                    mapping[word] = country.code;
+                }
+            });
+        });
+        return mapping;
+    }, [allCountries]);
+
+    // Function to find country code from country name
+    const findCountryCode = useCallback((searchTerm) => {
+        const term = searchTerm.toLowerCase().trim();
+
+        // Try to find the country by name
+        const matchingCountry = allCountries.find(country =>
+            country.name.toLowerCase().includes(term)
+        );
+
+        if (matchingCountry) {
+            // Return all possible country codes for better matching
+            return {
+                code: matchingCountry.code,      // 2-letter (e.g., 'IL')
+                code3: matchingCountry.code3,    // 3-letter (e.g., 'ISR')
+                ccn3: matchingCountry.ccn3       // 3-digit numeric (e.g., '376')
+            };
+        }
+
+        return null;
+    }, [allCountries]);
 
     const fetchGroups = useCallback(async (searchQuery, type) => {
         if (!searchQuery || searchQuery.length < 2) {
@@ -18,32 +56,44 @@ export default function GroupSearch({ onViewGroup }) {
         }
         setIsLoading(true);
         try {
-            // ✅ תיקון: שליחת פרמטרים נכונים בהתאם ל-searchType
             const params = {};
 
-            if (type === 'name' || type === 'all') {
-                params.q = searchQuery;
-            }
-            if (type === 'admin') {
-                params.adminName = searchQuery;
-            }
-            if (type === 'country') {
-                params.country = searchQuery;
-            }
-            if (type === 'all') {
-                // במקרה של חיפוש כללי, נשלח את כל הפרמטרים
-                params.adminName = searchQuery;
-                params.country = searchQuery;
+            switch (type) {
+                case 'name':
+                    params.q = searchQuery;
+                    break;
+                case 'admin':
+                    params.adminName = searchQuery;
+                    break;
+                case 'country':
+                    // Convert country name to country codes and try all formats
+                    const countryInfo = findCountryCode(searchQuery);
+                    if (countryInfo) {
+                        // Try all possible country code formats
+                        params.country = countryInfo.code3; // Try 3-letter first (most common)
+                        // We'll also add a special parameter to try other formats if the first doesn't work
+                        params.countryCode2 = countryInfo.code;  // 2-letter
+                        params.countryCodeNumeric = countryInfo.ccn3; // numeric
+                    } else {
+                        // If no country code found, search by name directly
+                        params.countryName = searchQuery;
+                    }
+                    break;
+                default:
+                    // Default to name search
+                    params.q = searchQuery;
+                    break;
             }
 
             const res = await axios.get(`http://localhost:5000/api/groups/search`, { params });
             setResults(res.data);
         } catch (err) {
             console.error("Failed to search groups", err);
+            setResults([]);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [findCountryCode]);
 
     const debouncedFetchGroups = useCallback(debounce(fetchGroups, 400), [fetchGroups]);
 
@@ -57,16 +107,25 @@ export default function GroupSearch({ onViewGroup }) {
             case 'name':
                 return 'Search by group name...';
             case 'country':
-                return 'Search by country name...';
+                return 'Search by country name (e.g., Israel, United States)...';
             case 'admin':
                 return 'Search by admin name...';
             default:
-                return 'Search groups by name, country, or admin...';
+                return 'Search by group name...';
         }
     };
 
+    // Function to get country name from country code for display
+    const getCountryName = useCallback((countryCode) => {
+        const country = allCountries.find(c => c.code === countryCode || c.code3 === countryCode);
+        return country ? country.name : countryCode;
+    }, [allCountries]);
+
     const GroupCard = ({ group }) => {
-        const groupCountries = (group.countries || []).map(code => allCountries.find(c => c.code3 === code)).filter(Boolean);
+        const groupCountries = (group.countries || []).map(code => {
+            // Try to find by code3 first, then by code
+            return allCountries.find(c => c.code3 === code || c.code === code);
+        }).filter(Boolean);
 
         return (
             <div className="col-lg-3 col-md-6 col-sm-12 mb-4">
@@ -139,6 +198,20 @@ export default function GroupSearch({ onViewGroup }) {
         );
     };
 
+    // Show country suggestions when searching by country
+    const getCountrySuggestions = () => {
+        if (searchType !== 'country' || !query || query.length < 2) return [];
+
+        return allCountries
+            .filter(country =>
+                country.name.toLowerCase().includes(query.toLowerCase())
+            )
+            .slice(0, 5)
+            .map(country => country.name);
+    };
+
+    const countrySuggestions = getCountrySuggestions();
+
     return (
         <div>
             <h4 className="mb-4">Find New Groups</h4>
@@ -151,26 +224,34 @@ export default function GroupSearch({ onViewGroup }) {
                             value={searchType}
                             onChange={(e) => setSearchType(e.target.value)}
                         >
-                            <option value="all">Search All</option>
                             <option value="name">Group Name</option>
                             <option value="country">Country</option>
                             <option value="admin">Admin Name</option>
                         </select>
                     </div>
                     <div className="col-md-9">
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            className="form-control form-control-lg"
-                            placeholder={getPlaceholderText()}
-                        />
+                        <div className="position-relative">
+                            <input
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                className="form-control form-control-lg"
+                                placeholder={getPlaceholderText()}
+                                list={searchType === 'country' ? 'country-suggestions' : undefined}
+                            />
+                            {searchType === 'country' && (
+                                <datalist id="country-suggestions">
+                                    {countrySuggestions.map(countryName => (
+                                        <option key={countryName} value={countryName} />
+                                    ))}
+                                </datalist>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <small className="text-muted mt-2 d-block">
-                    {searchType === 'all' && 'Searching across group names, descriptions, countries, and admin names'}
-                    {searchType === 'name' && 'Searching in group names only'}
-                    {searchType === 'country' && 'Searching in group countries'}
+                    {searchType === 'name' && 'Searching in group names and descriptions'}
+                    {searchType === 'country' && 'Searching in group countries - type full country names like "Israel" or "United States"'}
                     {searchType === 'admin' && 'Searching in admin names only'}
                 </small>
             </div>
@@ -196,6 +277,11 @@ export default function GroupSearch({ onViewGroup }) {
                     <i className="fas fa-search fa-3x text-muted mb-3"></i>
                     <h5 className="text-muted">No Groups Found</h5>
                     <p className="text-muted">No public groups found matching "<strong>{query}</strong>".</p>
+                    {searchType === 'country' && (
+                        <small className="text-muted">
+                            Try searching with the full country name (e.g., "Israel", "United States", "Germany")
+                        </small>
+                    )}
                 </div>
             )}
 
