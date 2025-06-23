@@ -144,12 +144,23 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             <div className="container-fluid py-4">
                 <div className="row">
                     <div className="col-md-8">
+                        {/* UserSearch component displayed above the "Group Feed" header when inviting */}
+                        {isInviting && isAdmin && (
+                            <div className="mb-4">
+                                <UserSearch
+                                    onUserSelect={handleInviteUser}
+                                    existingMemberIds={group.members.map(m => m.user._id)}
+                                />
+                            </div>
+                        )}
+
                         <div className="d-flex justify-content-between align-items-center mb-3">
                             <h4 className="mb-0">Group Feed</h4>
                             {isMember ? (<button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>+ New Post</button>)
                                 : (canViewContent && !hasPendingRequest && <button className="btn btn-success" onClick={handleRequestToJoin} disabled={isJoining}>{isJoining ? "Joining..." : "Join Group"}</button>)}
                         </div>
                         <hr />
+
                         {canViewContent ? (
                             posts.length > 0 ? (
                                 posts.map(post => <PostCard key={post._id} post={post} onUpdate={handleUpdatePost} onDelete={handleDeletePost} onNavigateToProfile={onNavigateToProfile} currentUserMongoId={mongoUser?._id} />)
@@ -164,7 +175,6 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                         )}
                     </div>
                     <div className="col-md-4">
-                        {isInviting && isAdmin && (<div className="mb-3"><UserSearch onUserSelect={handleInviteUser} existingMemberIds={group.members.map(m => m.user._id)} onCancel={() => setIsInviting(false)} title="Search for a user to invite" /></div>)}
                         {isAdmin && pendingJoinRequests.length > 0 && (
                             <div className="card mb-3">
                                 <div className="card-header bg-warning">Pending Join Requests</div>
