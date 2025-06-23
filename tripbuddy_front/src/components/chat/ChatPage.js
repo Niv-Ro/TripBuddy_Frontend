@@ -184,6 +184,7 @@ export default function ChatPage() {
                 {renderMainContent()}
             </main>
 
+
             <style jsx>{`
                 .chat-avatar {
                     width: 45px;

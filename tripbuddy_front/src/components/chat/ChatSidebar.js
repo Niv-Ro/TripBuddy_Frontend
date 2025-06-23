@@ -62,7 +62,7 @@ export default function ChatSidebar({
                 <input
                     type="text"
                     className="form-control"
-                    placeholder="Search chats..."
+                    placeholder="Search your chats..."
                     value={searchTerm}
                     onChange={(e) => onSearchTermChange(e.target.value)}
                 />
