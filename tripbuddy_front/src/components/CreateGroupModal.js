@@ -1,15 +1,15 @@
-"use client";
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import useCountries from '@/hooks/useCountries';
-import CountrySearch from './CountrySearch'; // שימוש חוזר ברכיב קיים
+import CountrySearch from './CountrySearch';
 
 export default function CreateGroupModal({ onClose, onGroupCreated }) {
     const { mongoUser } = useAuth();
     const allCountries = useCountries();
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [isPrivate, setIsPrivate] = useState(true); // ברירת מחדל: קבוצה פרטית
     const [taggedCountries, setTaggedCountries] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState('');
@@ -34,8 +34,9 @@ export default function CreateGroupModal({ onClose, onGroupCreated }) {
         const groupData = {
             name,
             description,
-            countries: taggedCountries.map(c => c.code3), // שלח רק את קודי המדינות
-            adminUserId: mongoUser._id
+            countries: taggedCountries.map(c => c.code3),
+            adminUserId: mongoUser._id,
+            isPrivate // שלח גם את זה
         };
         try {
             const res = await axios.post('http://localhost:5000/api/groups', groupData);
@@ -60,6 +61,17 @@ export default function CreateGroupModal({ onClose, onGroupCreated }) {
                     <div className="mb-3">
                         <label className="form-label">Description</label>
                         <textarea value={description} onChange={e => setDescription(e.target.value)} className="form-control"></textarea>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label">Private Group?</label>
+                        <select
+                            className="form-select"
+                            value={isPrivate}
+                            onChange={e => setIsPrivate(e.target.value === "true")}
+                        >
+                            <option value="true">Yes (Private)</option>
+                            <option value="false">No (Public)</option>
+                        </select>
                     </div>
                     <div className="mb-3">
                         <label className="form-label">Tagged Countries (at least one)</label>

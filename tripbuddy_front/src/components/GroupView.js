@@ -15,6 +15,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
+    const [isPrivate, setIsPrivate] = useState(true);
 
     const fetchGroupData = useCallback(() => {
         if (groupId) {
