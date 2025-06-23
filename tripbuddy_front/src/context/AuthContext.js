@@ -1,59 +1,93 @@
 'use client';
+import { useState, createContext, useContext, useEffect } from "react";
+import axios from "axios";
+import { auth } from "@/services/fireBase";
+import { onAuthStateChanged, signOut as firebaseSignOut } from "firebase/auth";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import axios from 'axios';
-import { auth } from '@/services/fireBase.js';
+export const AuthContext = createContext();
+export const useAuth = () => useContext(AuthContext);
 
-const AuthContext = createContext();
-
-export function AuthProvider({ children }) {
-    // --- State and Hooks ---
+export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [mongoUser, setMongoUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                // 1. משתמש מחובר ל-Firebase, נשמור את הפרטים שלו
-                setUser(currentUser);
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            setLoading(true);
+            if (firebaseUser) {
+                setUser(firebaseUser);
+                const cachedMongoUser = localStorage.getItem('mongoUser');
+                if (cachedMongoUser) {
+                    setMongoUser(JSON.parse(cachedMongoUser));
+                }
                 try {
-                    // 2. נביא את הפרטים המלאים שלו מה-MongoDB שלנו באמצעות האימייל
-                    const response = await axios.get(`http://localhost:5000/api/users/${currentUser.email}`);
-                    setMongoUser(response.data); // 3. נשמור את פרטי המשתמש מה-DB
+                    // ✅ התיקון: הסרנו את /email מהנתיב
+                    const res = await axios.get(`http://localhost:5000/api/users/${firebaseUser.email}`);
+                    const freshMongoUser = res.data;
+                    setMongoUser(freshMongoUser);
+                    localStorage.setItem('mongoUser', JSON.stringify(freshMongoUser));
                 } catch (error) {
-                    console.error("AuthContext: Failed to fetch user data from MongoDB", error);
-                    setMongoUser(null); // במקרה של שגיאה, נאפס את המידע
+                    console.error("Failed to fetch mongo user on auth state change. This can happen on first sign-up.", error);
+                    // נקה את המידע כדי למנוע חוסר התאמה
+                    setUser(null);
+                    setMongoUser(null);
+                    localStorage.removeItem('mongoUser');
+                    await firebaseSignOut(auth); // מומלץ לנתק את המשתמש אם אין לו רשומה ב-DB
                 }
             } else {
-                // אין משתמש מחובר, נאפס את שני המשתנים
                 setUser(null);
                 setMongoUser(null);
+                localStorage.removeItem('mongoUser');
             }
-            setLoading(false); // סימון שהטעינה הראשונית הסתיימה
+            setLoading(false);
         });
-
-        // ניקוי המאזין כשהאפליקציה נסגרת למניעת דליפות זיכרון
         return () => unsubscribe();
-    }, []); // המערך הריק מבטיח שה-useEffect ירוץ פעם אחת בלבד
+    }, []);
 
-    // הערכים שכל האפליקציה תוכל לגשת אליהם
+    const login = async (email) => {
+        setLoading(true);
+        try {
+            // ✅ התיקון: הסרנו את /email מהנתיב
+            const res = await axios.get(`http://localhost:5000/api/users/${email}`);
+            setMongoUser(res.data);
+            localStorage.setItem('mongoUser', JSON.stringify(res.data));
+        } catch (error) {
+            console.error("Failed to login", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const logout = async () => {
+        await firebaseSignOut(auth);
+        setUser(null);
+        setMongoUser(null);
+        localStorage.removeItem('mongoUser');
+    };
+
+    const updateMongoUser = (updatedFields) => {
+        setMongoUser(prevUser => {
+            if (!prevUser) return null;
+            const newUser = { ...prevUser, ...updatedFields };
+            localStorage.setItem('mongoUser', JSON.stringify(newUser));
+            return newUser;
+        });
+    };
+
     const value = {
         user,
         mongoUser,
         loading,
+        login,
+        logout,
+        updateMongoUser
     };
 
-    // אנחנו מציגים את התוכן של האפליקציה רק אחרי שהטעינה הראשונית הסתיימה
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {/* התיקון הקודם נשאר - מציגים תמיד את הילדים */}
+            {children}
         </AuthContext.Provider>
     );
-}
-
-// 3. יצירת Custom Hook לשימוש נוח וקל בכל קומפוננטה
-export const useAuth = () => {
-    return useContext(AuthContext);
 };
