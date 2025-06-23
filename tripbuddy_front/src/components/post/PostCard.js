@@ -158,16 +158,24 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
                 )}
 
                 <div className="card-body">
-                    <div className="d-flex align-items-center mb-2">
-                        <button className={`btn btn-sm me-2 ${isLikedByCurrentUser ? 'btn-danger' : 'btn-outline-danger'}`} onClick={handleLikeToggle}>❤️ Like ({likes.length})</button>
-                        <button className="btn btn-outline-secondary btn-sm" onClick={toggleCommentsVisibility}>💬 Comment ({comments.length})</button>
-                    </div>
                     <p className="card-text">{post.text}</p>
                     {taggedCountryObjects && taggedCountryObjects.length > 0 && (
                         <div className="mt-3">
-                            <div className="d-flex flex-wrap gap-2">{taggedCountryObjects.map(country => (<span key={country.code} className="badge bg-light text-dark fw-normal border"><img src={country.flag} alt={country.name} style={{width:'16px', marginRight:'5px'}}/>{country.name}</span>))}</div>
+                            <div className="d-flex flex-wrap gap-2">{taggedCountryObjects.map(country => (
+                                <span key={country.code} className="badge bg-light text-dark fw-normal border"><img
+                                    src={country.flag} alt={country.name}
+                                    style={{width: '16px', marginRight: '5px'}}/>{country.name}</span>))}</div>
                         </div>
                     )}
+                    <div className="d-flex align-items-center mb-2">
+                        <button
+                            className={`btn btn-sm me-2 ${isLikedByCurrentUser ? 'btn-danger' : 'btn-outline-danger'}`}
+                            onClick={handleLikeToggle}>❤️ Like ({likes.length})
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm" onClick={toggleCommentsVisibility}>💬
+                            Comment ({comments.length})
+                        </button>
+                    </div>
 
                     {commentsVisible && (
                         <>
@@ -176,31 +184,53 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
                                 <div className="mb-3">
                                     <div className="input-group input-group-sm">
                                         <span className="input-group-text">🔍</span>
-                                        <input type="text" className="form-control" placeholder="Search comments..." value={commentSearchTerm} onChange={(e) => setCommentSearchTerm(e.target.value)} />
-                                        {commentSearchTerm && ( <button className="btn btn-outline-secondary" type="button" onClick={clearSearch} title="Clear search">✕</button> )}
+                                        <input type="text" className="form-control" placeholder="Search comments..."
+                                               value={commentSearchTerm}
+                                               onChange={(e) => setCommentSearchTerm(e.target.value)}/>
+                                        {commentSearchTerm && (
+                                            <button className="btn btn-outline-secondary" type="button"
+                                                    onClick={clearSearch} title="Clear search">✕</button>)}
                                     </div>
-                                    {commentSearchTerm && ( <small className="text-muted">Showing {filteredComments.length} of {comments.length} comments</small> )}
+                                    {commentSearchTerm && (<small
+                                        className="text-muted">Showing {filteredComments.length} of {comments.length} comments</small>)}
                                 </div>
                             )}
 
                             <div className="comments-section">
                                 {filteredComments.length === 0 && commentSearchTerm ? (
-                                    <div className="text-muted text-center py-2"><small>No comments found matching "{commentSearchTerm}"</small></div>
+                                    <div className="text-muted text-center py-2"><small>No comments found matching
+                                        "{commentSearchTerm}"</small></div>
                                 ) : (
                                     filteredComments.map(comment => (
                                         comment && comment.author && (
                                             <div key={comment._id} className="d-flex mb-2">
-                                                <img src={comment.author.profileImageUrl || 'default-avatar.png'} alt={comment.author.fullName} className="post-author-img me-2" width="25" height="25" onClick={() => handleProfileClick(comment.author._id)} style={{cursor: 'pointer'}}/>
-                                                <div className="flex-grow-1" onClick={() => handleProfileClick(comment.author._id)} style={{cursor: 'pointer'}}>
+                                                <img src={comment.author.profileImageUrl || 'default-avatar.png'}
+                                                     alt={comment.author.fullName} className="post-author-img me-2"
+                                                     width="25" height="25"
+                                                     onClick={() => handleProfileClick(comment.author._id)}
+                                                     style={{cursor: 'pointer'}}/>
+                                                <div className="flex-grow-1"
+                                                     onClick={() => handleProfileClick(comment.author._id)}
+                                                     style={{cursor: 'pointer'}}>
                                                     <strong>{comment.author.fullName}</strong>
                                                     <p className="mb-0 small">{comment.text}</p>
                                                 </div>
                                                 {mongoUser?._id === comment.author._id && (
                                                     <div className="dropdown">
-                                                        <button className="btn btn-light btn-sm py-0 px-2" type="button" data-bs-toggle="dropdown">⋮</button>
+                                                        <button className="btn btn-light btn-sm py-0 px-2" type="button"
+                                                                data-bs-toggle="dropdown">⋮
+                                                        </button>
                                                         <ul className="dropdown-menu dropdown-menu-end">
-                                                            <li><button className="dropdown-item" onClick={() => setEditingComment(comment)}>Edit</button></li>
-                                                            <li><button className="dropdown-item text-danger" onClick={() => handleDeleteComment(comment._id)}>Delete</button></li>
+                                                            <li>
+                                                                <button className="dropdown-item"
+                                                                        onClick={() => setEditingComment(comment)}>Edit
+                                                                </button>
+                                                            </li>
+                                                            <li>
+                                                                <button className="dropdown-item text-danger"
+                                                                        onClick={() => handleDeleteComment(comment._id)}>Delete
+                                                                </button>
+                                                            </li>
                                                         </ul>
                                                     </div>
                                                 )}
@@ -210,7 +240,9 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
                                 )}
                             </div>
                             <form className="d-flex mt-2" onSubmit={handleCommentSubmit}>
-                                <input type="text" className="form-control form-control-sm" placeholder="Add a comment..." value={newComment} onChange={e => setNewComment(e.target.value)} />
+                                <input type="text" className="form-control form-control-sm"
+                                       placeholder="Add a comment..." value={newComment}
+                                       onChange={e => setNewComment(e.target.value)}/>
                                 <button type="submit" className="btn btn-outline-primary btn-sm ms-2">Post</button>
                             </form>
                         </>
@@ -221,7 +253,9 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
             {fullscreenMedia && (
                 <div className="fullscreen-viewer" onClick={() => setFullscreenMedia(null)}>
                     <button className="close-btn" onClick={() => setFullscreenMedia(null)}>&times;</button>
-                    {fullscreenMedia.type.startsWith('video/') ? <video src={fullscreenMedia.url} controls autoPlay onClick={e => e.stopPropagation()} /> : <img src={fullscreenMedia.url} alt="Fullscreen content" onClick={e => e.stopPropagation()} />}
+                    {fullscreenMedia.type.startsWith('video/') ?
+                        <video src={fullscreenMedia.url} controls autoPlay onClick={e => e.stopPropagation()}/> :
+                        <img src={fullscreenMedia.url} alt="Fullscreen content" onClick={e => e.stopPropagation()} />}
                 </div>
             )}
             {isEditingPost && ( <EditPostModal post={post} onUpdate={(updatedPost) => { onUpdate(updatedPost); setIsEditingPost(false); }} onCancel={() => setIsEditingPost(false)} /> )}
