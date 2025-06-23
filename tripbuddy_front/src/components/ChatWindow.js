@@ -4,8 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import axios from 'axios';
 import io from 'socket.io-client';
 
-const ENDPOINT = "http://localhost:5000"; // כתובת השרת של ה-socket
-let socket;
+const ENDPOINT = "http://localhost:5000";
 
 function ChatWindow({ chat, onBack }) {
     const { mongoUser } = useAuth();
@@ -13,42 +12,47 @@ function ChatWindow({ chat, onBack }) {
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const messagesEndRef = useRef(null); // משמש לגלילה אוטומטית
+    const socketRef = useRef(); // שימוש ב-useRef לשמירת ה-socket
+    const messagesEndRef = useRef(null);
 
-    // פונקציה לטעינת היסטוריית הודעות
+    // טעינת היסטוריית ההודעות
     useEffect(() => {
         if (!chat?._id) return;
         setIsLoading(true);
         axios.get(`http://localhost:5000/api/messages/${chat._id}`)
-            .then(res => {
-                setMessages(res.data);
-            })
+            .then(res => setMessages(res.data))
             .catch(err => console.error("Failed to fetch messages", err))
             .finally(() => setIsLoading(false));
     }, [chat]);
 
-    // פונקציה לניהול חיבור ה-socket
+    // ניהול חיבור ה-socket
     useEffect(() => {
-        socket = io(ENDPOINT);
-        if (mongoUser) socket.emit('setup', mongoUser._id);
+        if (!mongoUser) return;
 
-        socket.on('connect', () => {
-            if (chat?._id) socket.emit('join chat', chat._id);
-        });
+        socketRef.current = io(ENDPOINT);
+        const socket = socketRef.current;
 
-        socket.on('message received', (newMessageReceived) => {
+        socket.emit('setup', mongoUser._id);
+        socket.emit('join chat', chat._id);
+
+        const handleNewMessage = (newMessageReceived) => {
             if (chat?._id === newMessageReceived.chat._id) {
-                setMessages(prev => [...prev, newMessageReceived]);
+                setMessages(prevMessages => [...prevMessages, newMessageReceived]);
             }
-        });
+        };
 
-        // ניקוי החיבור בעת יציאה מהרכיב
-        return () => { socket.disconnect(); };
+        socket.on('message received', handleNewMessage);
+
+        return () => {
+            socket.off('message received', handleNewMessage);
+            socket.disconnect();
+        };
     }, [chat, mongoUser]);
 
     const sendMessage = async (e) => {
         e.preventDefault();
         if (newMessage.trim() === "" || !mongoUser) return;
+        const socket = socketRef.current;
 
         try {
             const messageData = {
@@ -56,22 +60,17 @@ function ChatWindow({ chat, onBack }) {
                 chatId: chat._id,
                 senderId: mongoUser._id,
             };
-            setNewMessage(""); // נקה את תיבת הטקסט מיידית
+            setNewMessage("");
 
-            // שלח ל-API כדי לשמור ב-DB, וקבל בחזרה את ההודעה המלאה
             const { data: savedMessage } = await axios.post('http://localhost:5000/api/messages', messageData);
 
-            // שלח את ההודעה המלאה דרך ה-socket לכל המשתמשים
             socket.emit('new message', savedMessage);
-
-            // הוסף את ההודעה למצב המקומי
             setMessages(prev => [...prev, savedMessage]);
         } catch (error) {
             console.error("Failed to send message", error);
         }
     };
 
-    // גלילה אוטומטית לתחתית בכל פעם שמתווספת הודעה
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
@@ -85,13 +84,10 @@ function ChatWindow({ chat, onBack }) {
 
     return (
         <div className="d-flex flex-column h-100">
-            {/* כותרת הצ'אט */}
             <div className="p-3 border-bottom d-flex align-items-center bg-white">
                 <button className="btn btn-light me-3" onClick={onBack}>←</button>
                 <h5 className="mb-0">{getChatName(chat)}</h5>
             </div>
-
-            {/* גוף הצ'אט עם ההודעות */}
             <div className="flex-grow-1 p-3 overflow-auto" style={{ backgroundColor: '#f0f2f5' }}>
                 {isLoading ? <p>Loading messages...</p> : messages.map(msg => (
                     <div key={msg._id} className={`d-flex mb-2 ${msg.sender?._id === mongoUser?._id ? 'justify-content-end' : 'justify-content-start'}`}>
@@ -103,17 +99,8 @@ function ChatWindow({ chat, onBack }) {
                 ))}
                 <div ref={messagesEndRef} />
             </div>
-
-            {/* תיבת שליחת הודעה */}
             <form onSubmit={sendMessage} className="p-3 border-top bg-white d-flex">
-                <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={e => setNewMessage(e.target.value)}
-                    autoComplete="off"
-                />
+                <input type="text" className="form-control" placeholder="Type a message..." value={newMessage} onChange={e => setNewMessage(e.target.value)} autoComplete="off" />
                 <button className="btn btn-primary ms-2" type="submit">Send</button>
             </form>
         </div>

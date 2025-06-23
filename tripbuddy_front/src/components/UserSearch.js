@@ -75,7 +75,7 @@ export default function UserSearch({
                 {onCancel && <button className="btn btn-outline-secondary" type="button" onClick={onCancel}>Cancel</button>}
             </div>
 
-            {isLoading && <div className="text-center p-2 text-muted">Searching...</div>}
+            {/*{isLoading && <div className="text-center p-2 text-muted">Searching...</div>}*/}
             {error && <div className="alert alert-danger mt-2">{error}</div>}
 
             {results.length > 0 && (
