@@ -488,3 +488,31 @@
 .image-remove-btn:hover {
     background-color: #c82333;
 }
+
+.groups-columns {
+    columns: auto;
+    column-width: 250px; /* Adjust to your card's width */
+    column-gap: 20px;
+    column-fill: balance;
+}
+
+/* Prevent cards from breaking across columns and maintain original size */
+.groups-columns > * {
+    break-inside: avoid;
+    margin-bottom: 20px;
+    width: 100%;
+    display: inline-block;
+}
+
+/* Responsive columns */
+@media (max-width: 992px) {
+    .groups-columns {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 576px) {
+    .groups-columns {
+        column-count: 1;
+    }
+}

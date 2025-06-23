@@ -179,7 +179,7 @@ export default function Profile({ userId, onNavigateToProfile }) {
                     </div>
                     <div className="ms-4 flex-grow-1">
                         <div className="d-flex align-items-center mb-2" style={{gap: 16}}>
-                            <h1 className="mb-0" style={{fontSize: '2.1rem'}}>{profileData.fullName}</h1>
+                            <h1 className="mb-0" style={{fontSize: '2.1rem',color: 'black',textShadow: '0 0 3px #000000'}}>{profileData.fullName}</h1>
                             {!isOwnProfile && mongoUser && (<button className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'} ms-3`} onClick={handleFollowToggle}>{isFollowing ? 'Unfollow' : 'Follow'}</button>)}
                         </div>
                         <div className="d-flex align-items-center" style={{gap: '1.5rem', cursor: 'pointer'}}>

@@ -5,6 +5,7 @@ import axios from 'axios';
 import CreateGroupModal from './CreateGroupModal';
 import GroupSearch from './GroupSearch';
 import useCountries from '@/hooks/useCountries';
+import '../styles/Style.css';
 
 export default function GroupsPage({ onViewGroup }) {
     const { mongoUser } = useAuth();
@@ -121,7 +122,7 @@ export default function GroupsPage({ onViewGroup }) {
                                 )}
                                 <h4 className="mb-4">My Groups</h4>
                                 {approvedGroups.length > 0 ? (
-                                    <div className="row">
+                                    <div className="groups-columns">
                                         {approvedGroups.map(group => (<GroupCard key={group._id} group={group} />))}
                                     </div>
                                 ) : (
