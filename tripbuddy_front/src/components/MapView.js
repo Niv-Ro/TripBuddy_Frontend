@@ -176,7 +176,7 @@ function MapView() {
             (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
         );
 
-        if (isVisited) return "rgba(250, 255, 100, 0.4)"; // Opaque yellow
+        if (isVisited) return "rgba(250, 255, 100, 0.5)"; // Opaque yellow
 
         // Check if country is in wishlist (orange) - keep opaque
         const isWishlist = wishlistCountries.some(c =>
@@ -187,7 +187,7 @@ function MapView() {
             (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
         );
 
-        if (isWishlist) return "rgba(255, 165, 0, 0.4)"; // Opaque orange
+        if (isWishlist) return "rgba(255, 165, 0, 0.5)"; // Opaque orange
 
         // Default: not selected (green) - now transparent
         return "rgba(45, 114, 61, 0.3)"; // #2D723D with 30% opacity

@@ -24,10 +24,10 @@ export default function EditPostModal({ post, onUpdate, onCancel }) {
 
     return (
         <div className="modal-overlay">
-            <div className="modal-content">
+            <div className="modal-content" style={{background: "#fff"}}>
                 <button className="modal-close-btn" onClick={onCancel}>&times;</button>
                 <h5>Edit Post</h5>
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit} >
                     <textarea
                         className="form-control"
                         rows="5"

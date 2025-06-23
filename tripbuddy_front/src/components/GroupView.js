@@ -97,7 +97,15 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             alert(error.response?.data?.message || "Action failed.");
         }
     };
-
+    const handleDeletePost = async (postId) => {
+        if (!window.confirm("Delete this post?")) return;
+        try {
+            await axios.delete(`http://localhost:5000/api/posts/${postId}`);
+            fetchGroupData(); // רענן את הפוסטים
+        } catch (error) {
+            alert('Failed to delete post');
+        }
+    };
     const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
     // ✅ Memo חדש לאיתור בקשות הצטרפות
     const pendingJoinRequests = useMemo(() => group?.members.filter(m => m.status === 'pending_approval') || [], [group]);
@@ -142,7 +150,16 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                             </div>
                             <hr />
                             {posts.length > 0 ? (
-                                posts.map(post => <PostCard key={post._id} post={post} onNavigateToProfile={onNavigateToProfile} />)
+                                posts.map(post =>
+                                    <PostCard
+                                        key={post._id}
+                                        post={post}
+                                        onNavigateToProfile={onNavigateToProfile}
+                                        currentUserMongoId={mongoUser?._id}
+                                        onUpdate={fetchGroupData}
+                                        onDelete={handleDeletePost} // שולח פונקציה אמיתית שמוחקת
+                                    />
+                                )
                             ) : (
                                 <div className="text-center p-5 bg-white rounded shadow-sm">
                                     <p className="text-muted">This group has no posts yet. Be the first to contribute!</p>

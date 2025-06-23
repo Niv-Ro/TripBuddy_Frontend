@@ -8,8 +8,10 @@ import PostCard from "@/components/PostCard";
 import CountryList from "./CountryList";
 import CountrySearch from "./CountrySearch";
 import '../styles/Style.css';
+import { storage } from "@/services/fireBase.js";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 
-// A simple Skeleton component for a better loading experience
+// Skeleton loading
 const ProfileSkeleton = () => (
     <div className="p-4 opacity-50" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
         <div className="navbar navbar-light border-bottom py-3 px-4">
@@ -25,32 +27,37 @@ const ProfileSkeleton = () => (
     </div>
 );
 
-
-// This component now receives the specific userId and the navigation function as props
 export default function Profile({ userId, onNavigateToProfile }) {
-    const { mongoUser, user } = useAuth(); // Logged-in user from context
+    const { mongoUser, user } = useAuth();
     const allCountries = useCountries();
 
-    // State for the data of the profile being viewed
+    // Main states
     const [profileData, setProfileData] = useState(null);
     const [userPosts, setUserPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isClient, setIsClient] = useState(false);
 
-    // State for managing country lists (only for our own profile)
+    // Editable states
     const [visitedCountries, setVisitedCountries] = useState([]);
     const [wishlistCountries, setWishlistCountries] = useState([]);
     const [addingToList, setAddingToList] = useState(null);
     const initialLoad = useRef(true);
 
-    // This check is the single source of truth for edit/delete permissions
+    // Permissions
     const isOwnProfile = mongoUser?._id === userId;
 
-    // State for Follow button
+    // Follow button state
     const [followersCount, setFollowersCount] = useState(0);
     const [isFollowing, setIsFollowing] = useState(false);
 
-    // Effect 1: Fetches the viewed profile's data
+    // Profile edit modal
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [bioInput, setBioInput] = useState('');
+    const [profileImageInput, setProfileImageInput] = useState(null);
+    const [isSaving, setIsSaving] = useState(false);
+
+
+    // Data loading
     useEffect(() => {
         setIsClient(true);
         if (!userId) {
@@ -63,14 +70,13 @@ export default function Profile({ userId, onNavigateToProfile }) {
                 const userData = res.data;
                 setProfileData(userData);
 
-                // ✅ FIX: Added logic to set the follow status and count
+                // Followers UI
                 if (userData.followers && mongoUser) {
                     setFollowersCount(userData.followers.length);
-                    // Check if the logged-in user's ID is in the followers list
                     setIsFollowing(userData.followers.some(follower => follower._id === mongoUser._id));
                 }
 
-                // If it's our own profile, initialize the editable state lists from the fetched data
+                // Editable country lists for self
                 if (isOwnProfile && allCountries.length > 0) {
                     setVisitedCountries(userData.visitedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
                     setWishlistCountries(userData.wishlistCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
@@ -89,9 +95,9 @@ export default function Profile({ userId, onNavigateToProfile }) {
                 setLoading(false);
                 setTimeout(() => { initialLoad.current = false; }, 500);
             });
-    }, [userId, allCountries, isOwnProfile, mongoUser]); // ✅ FIX: Added mongoUser to dependency array
+    }, [userId, allCountries, isOwnProfile, mongoUser]);
 
-    // Effect 2: Automatically saves the lists to the DB ONLY if it's our own profile and the lists change
+    // Auto-save country lists
     useEffect(() => {
         if (!isOwnProfile || initialLoad.current || !user?.email) return;
 
@@ -111,7 +117,8 @@ export default function Profile({ userId, onNavigateToProfile }) {
 
     }, [visitedCountries, wishlistCountries, isOwnProfile, user]);
 
-    // Handler Functions
+    // --- HANDLERS ---
+
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
         const setList = addingToList === 'visited' ? setVisitedCountries : setWishlistCountries;
@@ -149,10 +156,8 @@ export default function Profile({ userId, onNavigateToProfile }) {
                 `http://localhost:5000/api/users/${userId}/follow`,
                 { loggedInUserId: mongoUser._id }
             );
-            // Update the UI instantly for better user experience
             setIsFollowing(prev => !prev);
             setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
-
         } catch (error) {
             console.error("Failed to toggle follow", error);
             alert("Something went wrong.");
@@ -171,6 +176,47 @@ export default function Profile({ userId, onNavigateToProfile }) {
         return age;
     }
 
+    // Edit/save profile modal
+    const handleEditProfileSave = async () => {
+        setIsSaving(true);
+        try {
+            let profileImageUrl = profileData.profileImageUrl;
+
+            // --- Upload to Firebase like registration ---
+            if (profileImageInput) {
+                // Delete old image if there is one and it is stored in Firebase
+                if (profileImageUrl && profileImageUrl.includes("firebase")) {
+                    try {
+                        const oldRef = ref(storage, profileImageUrl);
+                        await deleteObject(oldRef);
+                    } catch (err) {
+                        console.warn("Could not delete old image (may not exist in Firebase):", err.message);
+                    }
+                }
+                // Upload new image
+                const imageRef = ref(storage, `profileImages/${mongoUser.firebaseUid}`);
+                await uploadBytes(imageRef, profileImageInput);
+                profileImageUrl = await getDownloadURL(imageRef);
+            }
+
+            // Send the new bio and profileImageUrl to your backend
+            await axios.put(`http://localhost:5000/api/users/${userId}/bio`, {
+                bio: bioInput,
+                profileImageUrl
+            });
+
+            setProfileData(prev => ({
+                ...prev,
+                bio: bioInput,
+                profileImageUrl
+            }));
+            setIsEditingProfile(false);
+        } catch (err) {
+            alert('Failed to update profile');
+        }
+        setIsSaving(false);
+    };
+
     if (loading) return <ProfileSkeleton />;
     if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
 
@@ -181,36 +227,76 @@ export default function Profile({ userId, onNavigateToProfile }) {
         <div>
             {/* Section 1: Main Profile Header */}
             <nav className="navbar navbar-light border-bottom py-3 px-4">
-                <div className="d-flex align-items-center w-100">
-                    <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
-                        <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
+                <div className="d-flex align-items-start w-100 position-relative">
+                    {/* Profile picture */}
+                    <div style={{width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0}}>
+                        <img
+                            src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                            alt="Profile"
+                            style={{width: '100%', height: '100%', objectFit: "cover"}}
+                        />
                     </div>
-                    {/* ✅ FIX: Added Follower count and Follow button */}
-                    <div className="ms-4">
-                        <h1 className="py-2 mb-1">{profileData.fullName}</h1>
-                        <h5 className="mb-2 text-muted">{followersCount} Followers</h5>
 
-                        {/* The button will only show on other users' profiles */}
-                        {!isOwnProfile && mongoUser && (
+                    {/* Main info */}
+                    <div className="ms-4 flex-grow-1">
+                        <div className="d-flex align-items-center" style={{gap: 16}}>
+                            <h1 className="mb-0" style={{fontSize: '2.1rem'}}>{profileData.fullName}</h1>
+                            <span className="text-muted" style={{fontSize: '1.1rem'}}>{followersCount} Followers</span>
+                            {!isOwnProfile && mongoUser && (
+                                <button
+                                    className={`btn ${isFollowing ? 'btn-secondary' : 'btn-primary'} ms-3`}
+                                    onClick={handleFollowToggle}
+                                    style={{whiteSpace: 'nowrap'}}
+                                >
+                                    {isFollowing ? 'Unfollow' : 'Follow'}
+                                </button>
+                            )}
+                        </div>
+                        <div className="d-flex flex-wrap mt-1" style={{gap: '1.5rem'}}>
+                            <span><b>Country:</b> {profileData.countryOrigin}</span>
+                            <span><b>Gender:</b> {profileData.gender}</span>
+                            <span><b>Age:</b> {isClient ? getAge(profileData.birthDate) : '...'}</span>
+                        </div>
+                        {/* Bio box under values */}
+                        <h5 className="fw-bold mb-2 my-2">Bio</h5>
+                        <div className=" border rounded bg-light"
+                             style={{
+                                 minHeight: 60,
+                                 maxHeight: 100,   // Maximum box height (adjust as you want)
+                                 maxWidth: 400,
+                                 overflowY: 'auto'
+                             }}>
+                            <p style={{whiteSpace: 'pre-line', marginBottom: 0}}>
+                                {profileData.bio || (isOwnProfile ? "Add something about yourself..." : "No bio yet.")}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Edit Profile Button at top right */}
+                    {isOwnProfile && (
+                        <div style={{position: "absolute", top: 0, right: 0}}>
                             <button
-                                className={`btn mb-2 ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
-                                onClick={handleFollowToggle}
+                                className="btn btn-outline-primary"
+                                onClick={() => {
+                                    setBioInput(profileData.bio || '');
+                                    setProfileImageInput(null);
+                                    setIsEditingProfile(true);
+                                }}
                             >
-                                {isFollowing ? 'Unfollow' : 'Follow'}
+                                Edit Profile
                             </button>
-                        )}
-
-                        <h5 className="mb-1">Country: {profileData.countryOrigin}</h5>
-                        <h5 className="mb-1">Gender: {profileData.gender}</h5>
-                        <h5 className="mb-0">Age: {isClient ? getAge(profileData.birthDate) : '...'}</h5>
-                    </div>
+                        </div>
+                    )}
                 </div>
             </nav>
 
+
             {/* Section 2: Country Lists */}
             <div className="p-3 border-bottom">
-                <CountryList title="Countries Visited" countries={finalVisited} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('visited')} onRemove={handleRemoveCountry} />
-                <CountryList title="My Wishlist" countries={finalWishlist} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('wishlist')} onRemove={handleRemoveCountry} />
+                <CountryList title="Countries Visited" countries={finalVisited} isOwnProfile={isOwnProfile}
+                             onAddRequest={() => setAddingToList('visited')} onRemove={handleRemoveCountry}/>
+                <CountryList title="My Wishlist" countries={finalWishlist} isOwnProfile={isOwnProfile}
+                             onAddRequest={() => setAddingToList('wishlist')} onRemove={handleRemoveCountry}/>
             </div>
 
             {/* Section 3: Search UI (only appears on our own profile) */}
@@ -237,6 +323,45 @@ export default function Profile({ userId, onNavigateToProfile }) {
                     />
                 ))}
             </div>
+
+            {/* Edit Profile Modal */}
+            {isOwnProfile && isEditingProfile && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', zIndex: 1050, left: 0, top: 0, width: '100vw', height: '100vh',
+                    background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                    <div className="modal-content" style={{
+                        background: 'white',
+                        borderRadius: 12,
+                        padding: 32,
+                        minWidth: 340,
+                        boxShadow: '0 2px 12px #0002',
+                        position: 'relative'
+                    }}>
+                        <button className="modal-close-btn btn btn-link text-danger"
+                                style={{position: 'absolute', top: 8, right: 16, fontSize: '2rem'}}
+                                onClick={() => setIsEditingProfile(false)}>&times;</button>
+                        <h5>Edit Profile</h5>
+                        <label className="form-label mt-3">Bio</label>
+                        <textarea
+                            className="form-control mb-3"
+                            rows="3"
+                            value={bioInput}
+                            onChange={e => setBioInput(e.target.value)}
+                        />
+                        <label className="form-label">Profile Picture</label>
+                        <input
+                            type="file"
+                            className="form-control mb-3"
+                            accept="image/*"
+                            onChange={e => setProfileImageInput(e.target.files[0])}
+                        />
+                        <button className="btn btn-primary" onClick={handleEditProfileSave} disabled={isSaving}>
+                            {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
