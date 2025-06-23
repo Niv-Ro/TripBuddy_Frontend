@@ -23,7 +23,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
 
                 <button className="btn mb-2 text-start" onClick={() => setView('feed')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3"
                                   fill="none"/>
@@ -36,16 +36,16 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => navigateToGroups()}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
-                            <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
+                            <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="3" fill="#fff"/>
                             <circle cx="32" cy="30" r="7" stroke="#555" strokeWidth="3" fill="none"/>
                             <path d="M24 45c1-5 15-5 16 0" stroke="#555" strokeWidth="3" fill="none"
                                   strokeLinecap="round"/>
-                            <circle cx="20" cy="37" r="5" stroke="#555" strokeWidth="2" fill="none"/>
-                            <path d="M14 47c1-4 10-4 11 0" stroke="#555" strokeWidth="2" fill="none"
+                            <circle cx="20" cy="37" r="5" stroke="#555" strokeWidth="3" fill="none"/>
+                            <path d="M14 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none"
                                   strokeLinecap="round"/>
-                            <circle cx="44" cy="37" r="5" stroke="#555" strokeWidth="2" fill="none"/>
-                            <path d="M39 47c1-4 10-4 11 0" stroke="#555" strokeWidth="2" fill="none"
+                            <circle cx="44" cy="37" r="5" stroke="#555" strokeWidth="3" fill="none"/>
+                            <path d="M39 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none"
                                   strokeLinecap="round"/>
                         </svg>
                         <span className="mt-1">Travel Groups</span>
@@ -53,7 +53,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('search')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="29" cy="29" r="10" stroke="#555" strokeWidth="3" fill="none"/>
                             <rect x="37" y="37" width="12" height="4" rx="2" transform="rotate(45 37 37)"
@@ -64,7 +64,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('map')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="32" cy="32" r="18" stroke="#555" strokeWidth="3" fill="none"/>
                             <ellipse cx="32" cy="32" rx="18" ry="7" stroke="#555" strokeWidth="2" fill="none"/>
@@ -76,7 +76,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('chats')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" strokeWidth="3"
                                   fill="none"/>
@@ -90,7 +90,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => navigateToProfile(currentUserId)}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                        <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="32" cy="26" r="10" stroke="#555" strokeWidth="3"/>
                             <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none"
