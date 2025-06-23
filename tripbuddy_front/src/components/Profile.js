@@ -67,7 +67,7 @@ export default function Profile({ userId, onNavigateToProfile }) {
             .then(postRes => { setUserPosts(postRes.data); })
             .catch(err => { setProfileData({ error: true }); })
             .finally(() => { setLoading(false); });
-    }, [userId, mongoUser, isOwnProfile, allCountries]);
+    }, [userId, mongoUser?._id, allCountries, isOwnProfile]);
 
     useEffect(() => {
         setIsClient(true);
@@ -77,16 +77,18 @@ export default function Profile({ userId, onNavigateToProfile }) {
     }, [userId, fetchProfileData]);
 
     useEffect(() => {
-        if (!isOwnProfile || initialLoad.current || !mongoUser?._id) return;
+        if (!isOwnProfile || initialLoad.current || !mongoUser?.email) return;
         const visitedCca3 = visitedCountries.map(c => c.code3);
         const wishlistCca3 = wishlistCountries.map(c => c.code3);
         axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
             visited: visitedCca3,
             wishlist: wishlistCca3,
+            visitedCcn3: visitedCountries.map(c => c.name),
+            wishlistCcn3: wishlistCountries.map(c => c.name),
         }).then(() => {
             refetchMongoUser();
         }).catch(err => console.error("Failed to save lists", err));
-    }, [visitedCountries, wishlistCountries, isOwnProfile, mongoUser, refetchMongoUser]);
+    }, [visitedCountries, wishlistCountries]);
 
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
@@ -130,7 +132,7 @@ export default function Profile({ userId, onNavigateToProfile }) {
             let profileImageUrl = profileData.profileImageUrl;
             if (profileImageInput) {
                 if (profileImageUrl && profileImageUrl.includes("firebase")) {
-                    try { await deleteObject(ref(storage, profileImageUrl)); } catch (err) { console.warn("Could not delete old image:", err.message); }
+                    try { await deleteObject(ref(storage, profileImageUrl)); } catch (err) { console.warn("Old image deletion failed:", err.message); }
                 }
                 const imageRef = ref(storage, `profileImages/${mongoUser._id}_${Date.now()}`);
                 await uploadBytes(imageRef, profileImageInput);
@@ -168,9 +170,6 @@ export default function Profile({ userId, onNavigateToProfile }) {
     if (loading) return <ProfileSkeleton />;
     if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
 
-    const finalVisited = isOwnProfile ? visitedCountries : (profileData.visitedCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
-    const finalWishlist = isOwnProfile ? wishlistCountries : (profileData.wishlistCountries?.map(c => allCountries.find(ac => ac.code3 === c)).filter(Boolean) || []);
-
     return (
         <div>
             <nav className="navbar navbar-light border-bottom py-3 px-4">
@@ -202,9 +201,8 @@ export default function Profile({ userId, onNavigateToProfile }) {
             </nav>
 
             <div className="p-3 border-bottom">
-                {/* ✅ התיקון: העבר את המשתנים הנכונים לרכיב */}
-                <CountryList title="Countries Visited" countries={finalVisited} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('visited')} onRemove={handleRemoveCountry}/>
-                <CountryList title="My Wishlist" countries={finalWishlist} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('wishlist')} onRemove={handleRemoveCountry}/>
+                <CountryList title="Countries Visited" countries={visitedCountries} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('visited')} onRemove={handleRemoveCountry}/>
+                <CountryList title="My Wishlist" countries={wishlistCountries} isOwnProfile={isOwnProfile} onAddRequest={() => setAddingToList('wishlist')} onRemove={handleRemoveCountry}/>
             </div>
 
             {isOwnProfile && addingToList && ( <CountrySearch allCountries={allCountries} existingCodes={addingToList === 'visited' ? visitedCountries.map(c => c.code) : wishlistCountries.map(c => c.code)} onSelectCountry={handleAddCountry} onCancel={() => setAddingToList(null)}/>)}

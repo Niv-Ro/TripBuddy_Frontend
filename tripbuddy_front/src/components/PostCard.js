@@ -7,6 +7,7 @@ import EditPostModal from './EditPostModal';
 import EditCommentModal from './EditCommentModal';
 import useCountries from '@/hooks/useCountries';
 
+
 export default function PostCard({ post, onNavigateToProfile, onNavigateToCountry, currentUserMongoId, onUpdate, onDelete }) {
     const { user } = useAuth();
     const allCountries = useCountries();
@@ -28,6 +29,12 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
         setComments(post.comments || []);
         setLikes(post.likes || []);
     }, [post]);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            require('bootstrap/dist/js/bootstrap.bundle.min.js');
+        }
+    }, []);
 
     const taggedCountryObjects = post.taggedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean);
 

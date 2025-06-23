@@ -34,13 +34,13 @@ const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
                 </p>
                 <div className="mt-auto">
                     <button
-                        className={`btn btn-sm w-100 ${isFollowing ? 'btn-secondary' : 'btn-primary'}`}
+                        className={`btn btn-sm w-100 ${isFollowing ? 'btn-outline-secondary' : 'btn-primary'}`}
                         onClick={(e) => {
-                            e.stopPropagation(); // מונע מהקליק להגיע ל-onClick של הכרטיס
+                            e.stopPropagation();
                             onFollowToggle(user._id);
                         }}
                     >
-                        {isFollowing ? 'Unfollow' : 'Follow'}
+                        {isFollowing ? 'Following' : 'Follow'}
                     </button>
                 </div>
             </div>
@@ -59,25 +59,33 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [hasSearched, setHasSearched] = useState(false); // State חדש כדי לדעת אם בוצע חיפוש
+    const [hasSearched, setHasSearched] = useState(false);
 
-    const fetchUsers = async () => {
-        // ודא שיש לפחות פילטר אחד לפני שרצים
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSearchClick = async () => {
         const hasFilters = Object.values(filters).some(value => value && value !== 'any');
         if (!hasFilters) {
             setError("Please enter at least one search filter.");
             setResults([]);
+            setHasSearched(true);
             return;
         }
 
         setIsLoading(true);
-        setHasSearched(true); // סמן שבוצע חיפוש
+        setHasSearched(true);
         setError('');
         try {
             const res = await axios.get('http://localhost:5000/api/users/search', { params: filters });
-            const filteredResults = existingMemberIds.length > 0
-                ? res.data.filter(user => !existingMemberIds.includes(user._id))
-                : res.data;
+
+            // ✅ התיקון: סינון המשתמש הנוכחי ומשתמשים קיימים מהתוצאות
+            const filteredResults = res.data.filter(user =>
+                user._id !== mongoUser?._id && !existingMemberIds.includes(user._id)
+            );
+
             setResults(filteredResults);
         } catch (err) {
             console.error("Failed to search for users", err);
@@ -87,20 +95,11 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
         }
     };
 
-    const handleFilterChange = (e) => {
-        const { name, value } = e.target;
-        setFilters(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSearchClick = () => {
-        fetchUsers();
-    };
-
     const handleFollowToggleInSearch = async (userIdToFollow) => {
         if (!mongoUser) return;
         try {
             await axios.post(`http://localhost:5000/api/users/${userIdToFollow}/follow`, { loggedInUserId: mongoUser._id });
-            await refetchMongoUser(); // רענן את המידע הגלובלי על המשתמש
+            await refetchMongoUser(); // רענן את המידע הגלובלי כדי לעדכן את כפתור העקוב
         } catch (error) {
             console.error("Failed to toggle follow in search", error);
             alert("Could not perform action.");
@@ -142,6 +141,8 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
             </div>
 
             {error && <div className="alert alert-danger">{error}</div>}
+
+            {isLoading && <div className="text-center"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>}
 
             {!isLoading && results.length > 0 && (
                 <div className="row">
