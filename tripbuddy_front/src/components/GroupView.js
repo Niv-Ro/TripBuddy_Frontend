@@ -10,7 +10,6 @@ import CreatePost from './CreatePost';
 export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const { mongoUser } = useAuth();
     const allCountries = useCountries();
-
     const [group, setGroup] = useState(null);
     const [posts, setPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -70,12 +69,39 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
         }
     };
 
-    const taggedCountryObjects = useMemo(() => {
-        if (!group?.countries || !allCountries.length) return [];
-        return (group.countries || []).map(code => allCountries.find(c => c.code3 === code)).filter(Boolean);
-    }, [group, allCountries]);
+    // ✅ פונקציה חדשה לטיפול בהסרת חבר
+    const handleRemoveMember = async (memberIdToRemove) => {
+        if (!mongoUser || !window.confirm("Are you sure you want to remove this member?")) return;
+        try {
+            await axios.post(`http://localhost:5000/api/groups/${group._id}/remove-member`, {
+                adminId: mongoUser._id,
+                memberToRemoveId: memberIdToRemove
+            });
+            fetchGroupData(); // רענן את נתוני הקבוצה
+        } catch (error) {
+            alert(error.response?.data?.message || "Could not remove member.");
+        }
+    };
+
+    // ✅ פונקציה חדשה למענה לבקשות הצטרפות
+    const handleRespondToRequest = async (requesterId, response) => {
+        if (!mongoUser) return;
+        try {
+            await axios.post(`http://localhost:5000/api/groups/${group._id}/respond-request`, {
+                adminId: mongoUser._id,
+                requesterId: requesterId,
+                response: response
+            });
+            fetchGroupData(); // רענן את נתוני הקבוצה
+        } catch (error) {
+            alert(error.response?.data?.message || "Action failed.");
+        }
+    };
 
     const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
+    // ✅ Memo חדש לאיתור בקשות הצטרפות
+    const pendingJoinRequests = useMemo(() => group?.members.filter(m => m.status === 'pending_approval') || [], [group]);
+
     const isMember = useMemo(() => approvedMembers.some(member => member.user?._id === mongoUser?._id), [approvedMembers, mongoUser]);
     const isAdmin = useMemo(() => group?.admin?._id === mongoUser?._id, [group, mongoUser]);
     const hasPendingRequest = useMemo(() => group?.members.some(m => m.user?._id === mongoUser?._id && m.status !== 'approved'), [group, mongoUser]);
@@ -85,7 +111,6 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     if (!group) return (
         <div className="text-center p-5">
             <h4>Group Not Found</h4>
-            <p>This group may not exist or you may not have permission to view it.</p>
             <button className="btn btn-secondary" onClick={onBack}>← Back to Groups</button>
         </div>
     );
@@ -97,36 +122,15 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                     <button className="btn btn-secondary me-3" onClick={onBack}>←</button>
                     <div>
                         <h3 className="mb-1">{group.name}</h3>
-                        <p className="mb-2 text-muted small">{group.description}</p>
-                        {taggedCountryObjects.length > 0 && (
-                            <div className="d-flex flex-wrap gap-1">
-                                {taggedCountryObjects.map(country => (
-                                    <span key={country.code} className="badge bg-white text-dark fw-normal border">
-                                        <img src={country.flag} alt={country.name} style={{ width: '16px', height: '12px', marginRight: '5px' }} />
-                                        {country.name}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
+                        <p className="mb-0 text-muted small">{group.description}</p>
                     </div>
                 </div>
                 {isAdmin && (
                     <button className="btn btn-outline-primary" onClick={() => setIsInviting(prev => !prev)}>
-                        {isInviting ? 'Cancel Invite' : 'Invite Member'}
+                        {isInviting ? 'Cancel' : 'Invite Member'}
                     </button>
                 )}
             </nav>
-
-            {isInviting && isAdmin && (
-                <div className="p-3 bg-light border-bottom">
-                    <UserSearch
-                        onUserSelect={handleInviteUser}
-                        existingMemberIds={group.members.map(m => m.user._id)}
-                        title="Search for a user to invite"
-                        onCancel={() => setIsInviting(false)}
-                    />
-                </div>
-            )}
 
             {isMember ? (
                 <div className="container-fluid py-4">
@@ -146,6 +150,38 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                             )}
                         </div>
                         <div className="col-md-4">
+                            {/* ✅ FIX 2: מיקום חדש לרכיב חיפוש ההזמנות */}
+                            {isInviting && isAdmin && (
+                                <div className="mb-3">
+                                    <UserSearch
+                                        onUserSelect={handleInviteUser}
+                                        existingMemberIds={group.members.map(m => m.user._id)}
+                                        title="Search for a user to invite"
+                                        onCancel={() => setIsInviting(false)}
+                                    />
+                                </div>
+                            )}
+
+                            {/* ✅ FIX 3: הצגת בקשות הצטרפות למנהל */}
+                            {isAdmin && pendingJoinRequests.length > 0 && (
+                                <div className="card mb-3">
+                                    <div className="card-header bg-warning">Pending Join Requests</div>
+                                    <ul className="list-group list-group-flush">
+                                        {pendingJoinRequests.map(({ user }) => (
+                                            user && (
+                                                <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
+                                                    <span>{user.fullName}</span>
+                                                    <div>
+                                                        <button className="btn btn-sm btn-success me-1" onClick={() => handleRespondToRequest(user._id, 'approve')}>✓</button>
+                                                        <button className="btn btn-sm btn-danger" onClick={() => handleRespondToRequest(user._id, 'decline')}>X</button>
+                                                    </div>
+                                                </li>
+                                            )
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             <div className="card">
                                 <div className="card-header">{approvedMembers.length} Members</div>
                                 <ul className="list-group list-group-flush">
@@ -154,7 +190,8 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                             <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
                                                 <span>{user.fullName} {group.admin._id === user._id && <span className="badge bg-primary ms-2">Admin</span>}</span>
                                                 {isAdmin && user._id !== group.admin._id && (
-                                                    <button className="btn btn-sm btn-outline-danger py-0">Remove</button>
+                                                    // ✅ FIX 1: הוספת onClick לכפתור ההסרה
+                                                    <button className="btn btn-sm btn-outline-danger py-0" onClick={() => handleRemoveMember(user._id)}>Remove</button>
                                                 )}
                                             </li>
                                         )
