@@ -51,7 +51,7 @@ export default function GroupCard({ group, onViewGroup, allCountries = [] }) {
                 {/* The card footer displays the number of members in the group.
                     If group has only one member, write in singular*/}
                 <div className="card-footer text-muted small">
-                    {(group.members || []).length} members{(group.members || []).length !== 1 ? 's' : ''}
+                    {(group.members || []).length} member{(group.members || []).length !== 1 ? 's' : ''}
                 </div>
             </div>
         </div>

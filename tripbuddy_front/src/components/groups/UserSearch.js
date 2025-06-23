@@ -3,7 +3,22 @@ import React, { useState, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 
-// פונקציית עזר לחישוב גיל מתאריך
+// A small, simple component for list view display.
+const UserListItem = ({ user, onSelect }) => (
+    <div
+        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+        onClick={() => onSelect(user)}
+        style={{ cursor: 'pointer' }}
+    >
+        <img
+            src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.fullName.replace(/\s/g, '+')}`}
+            alt={user.fullName}
+            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+        />
+        <span className="fw-medium">{user.fullName}</span>
+    </div>
+);
+
 function getAge(dateString) {
     if (!dateString) return '';
     const today = new Date();
@@ -15,22 +30,6 @@ function getAge(dateString) {
     }
     return age;
 }
-
-// A small, simple component for list view display.
-const UserListItem = ({ user, onSelect }) => (
-    <div
-        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
-        onClick={() => onSelect(user)}
-        style={{cursor: 'pointer'}}
-    >
-        <img
-            src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.fullName.replace(/\s/g, '+')}`}
-            alt={user.fullName}
-            style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}}
-        />
-        <span className="fw-medium">{user.fullName}</span>
-    </div>
-);
 
 // A larger component for card view display.
 const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
@@ -51,6 +50,7 @@ const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
                 <div className="mt-auto">
                     <button
                         className={`btn btn-sm w-100 ${isFollowing ? 'btn-outline-secondary' : 'btn-primary'}`}
+                        // It now calls the `onFollowToggle` function passed down from UserSearch.
                         onClick={(e) => {
                             e.stopPropagation();
                             onFollowToggle(user._id);
@@ -64,14 +64,10 @@ const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
     </div>
 );
 
+
 export default function UserSearch({ onUserSelect, existingMemberIds = [], title, onCancel, displayMode = 'card' }) {
     const { mongoUser, refetchMongoUser } = useAuth();
-    const [filters, setFilters] = useState({
-        name: '',
-        minAge: '',
-        maxAge: '',
-        gender: 'any'
-    });
+    const [filters, setFilters] = useState({ name: '', minAge: '', maxAge: '', gender: 'any' });
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -99,7 +95,6 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [], title
             const filteredResults = res.data.filter(user =>
                 user._id !== mongoUser?._id && !existingMemberIds.includes(user._id)
             );
-
             setResults(filteredResults);
         } catch (err) {
             console.error("Failed to search for users", err);
@@ -109,62 +104,64 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [], title
         }
     };
 
+    // This is the local function to handle the follow action within the search component.
+    const handleFollowToggleInSearch = async (userIdToFollow) => {
+        if (!mongoUser) return;
+        try {
+            await axios.post(`http://localhost:5000/api/users/${userIdToFollow}/follow`, { loggedInUserId: mongoUser._id });
+            // After following, refetch the global user data to update the 'following' list everywhere.
+            await refetchMongoUser();
+        } catch (error) {
+            console.error("Failed to toggle follow in search", error);
+            alert("Could not perform action.");
+        }
+    };
+
     return (
-        <div className="p-4">
-            <h3 className="mb-4">Search for Buddies</h3>
+        <div className="p-3">
+            {title && <h5 className="mb-3">{title}</h5>}
             <div className="card card-body mb-4">
-                <div className="row g-3 align-items-end">
-                    <div className="col-md-4">
-                        <label htmlFor="name" className="form-label">Name</label>
-                        <input type="text" name="name" id="name" value={filters.name} onChange={handleFilterChange} className="form-control" placeholder="Search by name..." />
-                    </div>
-                    <div className="col-md-2">
-                        <label htmlFor="minAge" className="form-label">Min Age</label>
-                        <input type="number" name="minAge" id="minAge" value={filters.minAge} onChange={handleFilterChange} className="form-control" placeholder="e.g., 18" />
-                    </div>
-                    <div className="col-md-2">
-                        <label htmlFor="maxAge" className="form-label">Max Age</label>
-                        <input type="number" name="maxAge" id="maxAge" value={filters.maxAge} onChange={handleFilterChange} className="form-control" placeholder="e.g., 99" />
-                    </div>
-                    <div className="col-md-2">
-                        <label htmlFor="gender" className="form-label">Gender</label>
-                        <select name="gender" id="gender" value={filters.gender} onChange={handleFilterChange} className="form-select">
-                            <option value="any">Any</option>
+                <div className="row g-2 align-items-end">
+                    <div className="col"><input type="text" name="name" placeholder="Name..." className="form-control" value={filters.name} onChange={handleFilterChange} /></div>
+                    <div className="col"><input type="number" name="minAge" placeholder="Min Age" className="form-control" value={filters.minAge} onChange={handleFilterChange} /></div>
+                    <div className="col"><input type="number" name="maxAge" placeholder="Max Age" className="form-control" value={filters.maxAge} onChange={handleFilterChange} /></div>
+                    <div className="col">
+                        <select name="gender" className="form-select" value={filters.gender} onChange={handleFilterChange}>
+                            <option value="any">Any Gender</option>
                             <option value="Male">Male</option>
                             <option value="Female">Female</option>
-                            <option value="Other">Other</option>
                         </select>
                     </div>
-                    <div className="col-md-2">
-                        <button className="btn btn-primary w-100" onClick={handleSearchClick} disabled={isLoading}>
-                            {isLoading ? <span className="spinner-border spinner-border-sm"></span> : 'Search'}
-                        </button>
-                    </div>
-                    {/* Cancel button that calls the onCancel prop. */}
+                    <div className="col-auto"><button className="btn btn-primary w-100" onClick={handleSearchClick} disabled={isLoading}>{isLoading ? '...' : 'Search'}</button></div>
                     {onCancel && <div className="col-auto"><button className="btn btn-outline-secondary w-100" onClick={onCancel}>Cancel</button></div>}
                 </div>
             </div>
 
             {error && <div className="alert alert-danger">{error}</div>}
+            {isLoading && <div className="text-center"><div className="spinner-border" role="status"></div></div>}
 
-            {isLoading && <div className="text-center"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>}
-
-            {/* Conditional rendering based on the new `displayMode` prop. */}
             {!isLoading && results.length > 0 && (
                 displayMode === 'card' ? (
                     <div className="row">
-                        {results.map(user => <UserCard key={user._id} user={user} onSelect={onUserSelect} />)}
+                        {results.map(user => (
+                            <UserCard
+                                key={user._id}
+                                user={user}
+                                onSelect={onUserSelect}
+                                onFollowToggle={handleFollowToggleInSearch}
+                                // Check if the logged-in user is following the user in the card.
+                                isFollowing={mongoUser?.following.includes(user._id)}
+                            />
+                        ))}
                     </div>
                 ) : (
                     <div className="list-group" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                        {results.map(user => <UserListItem key={user._id} user={user} onSelect={onUserSelect}  />)}
+                        {results.map(user => <UserListItem key={user._id} user={user} onSelect={onUserSelect} />)}
                     </div>
                 )
             )}
 
-            {!isLoading && results.length === 0 && hasSearched && (
-                <p className="text-muted text-center mt-4">No users found matching your criteria.</p>
-            )}
+            {!isLoading && results.length === 0 && hasSearched && <p className="text-muted text-center mt-4">No users found.</p>}
         </div>
     );
 }

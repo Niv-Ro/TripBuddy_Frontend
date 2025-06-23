@@ -8,7 +8,6 @@ import { storage } from "@/services/fireBase.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { useFileProcessor } from "@/hooks/useFileProcessor";
 
-// Import all the smaller, presentational components that make up this page.
 import FollowListModal from './FollowListModal';
 import ProfileHeader from "./ProfileHeader";
 import ProfileCountryLists from "./ProfileCountryLists";
@@ -34,30 +33,30 @@ const ProfileSkeleton = () => (
 );
 
 // This is the main "Container" component for the profile page.
-// It receives the userId to display and a function to navigate to other profiles.
+// It receives the userId to display, the logged-in user's country lists, and an update handler.
 export default function ProfilePage({ userId, onNavigateToProfile, visitedCountries, wishlistCountries, onListsChange }) {
+    // --- Hooks and State Initialization ---
 
-    // Gets global user data and functions from the authentication context.
+    // Gets global user data (both Firebase and MongoDB) and functions from the authentication context.
     const { mongoUser, refetchMongoUser, user } = useAuth();
     // Gets the global list of all countries from a custom hook.
     const allCountries = useCountries();
-    // Gets file processing logic from a custom hook.
+    // Gets file processing logic from a custom hook for image compression.
     const { processFiles, processedFiles, isProcessing: isCompressing } = useFileProcessor();
 
-    // State for the data of the profile being viewed.
+    // State for the data of the profile being VIEWED, fetched via API.
     const [profileData, setProfileData] = useState(null);
     const [userPosts, setUserPosts] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // State ONLY for displaying OTHER people's (non-interactive) country lists.
+    const [viewedUserVisited, setViewedUserVisited] = useState([]);
+    const [viewedUserWishlist, setViewedUserWishlist] = useState([]);
 
     // UI state for managing interactions.
-
-    const isOwnProfile = mongoUser?._id === userId; // A computed boolean to check if viewing your own profile.
-
-    // Makes sure that all information depends on user browser (time, last window opened) is being calculated at client side after sync with server
     const [isClient, setIsClient] = useState(false);
     const [addingToList, setAddingToList] = useState(null); // Tracks if the user is adding to 'visited' or 'wishlist'.
-    const initialLoad = useRef(true); // A ref to prevent effects from running on the initial render.
+    const isOwnProfile = mongoUser?._id === userId; // A computed boolean to check if viewing your own profile.
     const [isFollowing, setIsFollowing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
@@ -69,76 +68,66 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
 
     // State for the controlled inputs in the edit modal.
     const [bioInput, setBioInput] = useState('');
-    const [profileImageInput, setProfileImageInput] = useState(null);
 
 
-    // Main data fetching function, we use useCallback to prevent function load every render, only loads when dependencies change.
-    const fetchProfileData = useCallback(() => {
-        if (!userId) { setLoading(false); return; }
-        setLoading(true);
-        // Fetches user details from the database by user id got as a prop.
-        axios.get(`http://localhost:5000/api/users/id/${userId}`)
-            .then(res => {
-                const userData = res.data;
-                setProfileData(userData);
-                // After getting the data, check if the logged-in user is following this profile.
-                if (mongoUser && userData.followers) {
-                    setIsFollowing(userData.followers.some(follower => follower._id === mongoUser._id));
-                }
-            })
-            .catch(err => {
-                console.error("Failed to fetch profile data", err);
-                setProfileData({ error: true });
-            })
-            .finally(() => { setLoading(false); });
-
-        // Fetches all posts belonging to this user
-        axios.get(`http://localhost:5000/api/posts/user/${userId}`)
-            .then(postRes => { setUserPosts(postRes.data); })
-            .catch(err => { console.error("Failed to fetch user posts", err); });
-
-    }, [userId, mongoUser]); //Runs when the viewed profile has changed or the system user changed
-
-    // This effect runs when the component mounts or when the userId/fetchProfileData function changes.
-    // Its main job is to trigger the initial data fetch.
+    // Fetches the primary data (user profile and posts) for the currently viewed user.
+    // Its only dependency is `userId`, so it runs only when viewing a new profile.
     useEffect(() => {
         setIsClient(true);
-        fetchProfileData();
-        // The timer and ref prevent the auto-save effect from running on the very first load.
-        // Removing it will cause override data and deletion of user data each time
-        const timer = setTimeout(() => { initialLoad.current = false; }, 1000);
-        return () => clearTimeout(timer); //Prevent memory leak if object is off the screen
-    }, [userId, fetchProfileData]);
+        if (!userId) { setLoading(false); return; }
+        setLoading(true);
+        // Fetches user details and user posts concurrently for better performance.
+        Promise.all([
+            axios.get(`http://localhost:5000/api/users/id/${userId}`),
+            axios.get(`http://localhost:5000/api/posts/user/${userId}`)
+        ]).then(([userRes, postRes]) => {
+            setProfileData(userRes.data);
+            setUserPosts(postRes.data);
+            if (mongoUser && userRes.data.followers) {
+                setIsFollowing(userRes.data.followers.some(follower => follower._id === mongoUser._id));
+            }
+        }).catch(err => {
+            console.error("Failed to load profile data", err);
+            setProfileData({ error: true });
+        }).finally(() => {
+            setLoading(false);
+        });
+    }, [userId, mongoUser]);
+
+    // Processes country lists for OTHER users' profiles.
+    useEffect(() => {
+        if (!isOwnProfile && profileData && !profileData.error && allCountries.length > 0) {
+            const visited = profileData.visitedCountries?.map(code =>
+                allCountries.find(c => c.code3 === code)).filter(Boolean) || [];
+            const wishlist = profileData.wishlistCountries?.map(code =>
+                allCountries.find(c => c.code3 === code)).filter(Boolean) || [];
+            setViewedUserVisited(visited);
+            setViewedUserWishlist(wishlist);
+        }
+    }, [profileData, allCountries, isOwnProfile]);
 
 
-    // Adds a country to the appropriate list in the local state.
+    // Adds a country to the appropriate list and calls the parent's update function.
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
-
-        if (addingToList === 'visited') {
-            const newWishlist = wishlistCountries.filter(c => c.code !== country.code);
-            const newVisited = visitedCountries.some(c => c.code === country.code) ? visitedCountries : [...visitedCountries, country];
+        //const targetList = addingToList === 'visited' ? visitedCountries : wishlistCountries;
+        //if (!targetList.some(c => c.code === country.code)) {
+            const newVisited = addingToList === 'visited' ? [...visitedCountries, country] : visitedCountries;
+            const newWishlist = addingToList === 'wishlist' ? [...wishlistCountries, country] : wishlistCountries;
             onListsChange(newVisited, newWishlist);
-        } else { // 'wishlist'
-            const newWishlist = wishlistCountries.some(c => c.code === country.code) ? wishlistCountries : [...wishlistCountries, country];
-            onListsChange(visitedCountries, newWishlist);
-        }
+        //}
         setAddingToList(null);
     };
 
+    // Removes a country from the appropriate list and calls the parent's update function.
     const handleRemoveCountry = (countryCode, listType) => {
         if (!isOwnProfile) return;
-
-        if (listType === 'visited') {
-            const newVisited = visitedCountries.filter(c => c.code !== countryCode);
-            onListsChange(newVisited, wishlistCountries);
-        } else { // 'wishlist'
-            const newWishlist = wishlistCountries.filter(c => c.code !== countryCode);
-            onListsChange(visitedCountries, newWishlist);
-        }
+        const newVisited = listType === 'visited' ? visitedCountries.filter(c => c.code !== countryCode) : visitedCountries;
+        const newWishlist = listType === 'wishlist' ? wishlistCountries.filter(c => c.code !== countryCode) : wishlistCountries;
+        onListsChange(newVisited, newWishlist);
     };
 
-    // Deletes a post from the DB and optimistically removes it from the UI, no need to load list again.
+    // Deletes a post from the DB and optimistically removes it from the UI.
     const handleDeletePost = async (postId) => {
         if (isOwnProfile && window.confirm("Are you sure?")) {
             await axios.delete(`http://localhost:5000/api/posts/${postId}`);
@@ -146,7 +135,7 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
         }
     };
 
-    // Updates a post in the UI after it has been edited, no need to load list again, DB save is in EditPostModal .
+    // Updates a post in the UI after it has been edited.
     const handleUpdatePost = (updatedPost) => {
         setUserPosts(prev => prev.map(p => (p._id === updatedPost._id ? updatedPost : p)));
     };
@@ -156,8 +145,7 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
         if (!mongoUser) return;
         try {
             await axios.post(`http://localhost:5000/api/users/${userId}/follow`, { loggedInUserId: mongoUser._id });
-            await refetchMongoUser();
-            fetchProfileData();
+            refetchMongoUser();
         } catch (error) { console.error("Failed to toggle follow", error); }
     };
 
@@ -174,16 +162,12 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                 }
                 const userFullName = mongoUser.fullName.replace(/\s+/g, '_');
                 const userEmail = mongoUser.email;
-                const imageRef = ref(storage, `profile_images/${userFullName}_(${userEmail})`);
+                const imageRef = ref(storage, `profileImages/${userFullName}_(${userEmail})`);
                 await uploadBytes(imageRef, imageToUpload);
                 profileImageUrl = await getDownloadURL(imageRef);
             }
-
-            //Update on DB
             await axios.put(`http://localhost:5000/api/users/${userId}/bio`, { bio: bioInput, profileImageUrl });
-
             await refetchMongoUser();
-            fetchProfileData();
             setIsEditingProfile(false);
         } catch (err) {
             console.error("Failed to update profile", err);
@@ -209,8 +193,8 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
         try {
             await axios.post(`http://localhost:5000/api/users/${userIdToUnfollow}/follow`, { loggedInUserId: mongoUser._id });
             await refetchMongoUser();
+            // Optimistically remove the user from the modal's list.
             setModalData(prev => ({ ...prev, list: prev.list.filter(user => user._id !== userIdToUnfollow) }));
-            fetchProfileData();
         } catch (error) { console.error("Failed to unfollow from modal", error); }
     };
 
@@ -226,34 +210,35 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                     data: { firebaseUid: mongoUser.firebaseUid }
                 });
                 alert("Your account has been deleted successfully.");
-                window.location.href = '/login';
+                window.location.href = '/';
             } catch (error) {
                 console.error("Failed to delete account:", error);
                 alert("An error occurred while deleting your account. Please try again.");
             }
-        } else if (promptMessage) {
+        } else {
             alert("Account deletion cancelled.");
         }
     };
 
-    // A simple function to calculate age from a birthdate.
-    const getAge = (dateString) =>{
+    // A simple utility function to calculate age from a birthdate.
+    function getAge(dateString) {
         if (!dateString) return '';
         const today = new Date();
         const birthDate = new Date(dateString);
         let age = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) { age--; }
         return age;
     }
 
     if (loading) return <ProfileSkeleton />;
     if (!profileData || profileData.error) return <div className="p-4 text-danger">Profile not found.</div>;
 
+    // This logic determines which set of lists to display.
+    const displayVisited = isOwnProfile ? visitedCountries : viewedUserVisited;
+    const displayWishlist = isOwnProfile ? wishlistCountries : viewedUserWishlist;
+
     return (
-        //Passes necessary data for profile components as props
         <div>
             <ProfileHeader
                 profileData={profileData}
@@ -265,15 +250,14 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                 onOpenFollowModal={openFollowModal}
                 onEdit={() => {
                     setBioInput(profileData.bio || '');
-                    setProfileImageInput(null); // Clear previous file selection
                     setIsEditingProfile(true);
                 }}
                 onShowStats={() => setIsShowingStats(true)}
             />
             <ProfileCountryLists
                 isOwnProfile={isOwnProfile}
-                visitedCountries={visitedCountries}
-                wishlistCountries={wishlistCountries}
+                visitedCountries={displayVisited}
+                wishlistCountries={displayWishlist}
                 addingToList={addingToList}
                 allCountries={allCountries}
                 onAddRequest={setAddingToList}
@@ -290,7 +274,6 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                 onNavigateToProfile={onNavigateToProfile}
             />
             {isOwnProfile && <DangerZone onDeleteProfile={handleDeleteProfile} />}
-
             <EditProfileModal
                 isOpen={isEditingProfile}
                 onClose={() => setIsEditingProfile(false)}
@@ -300,7 +283,6 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                 onBioChange={(e) => setBioInput(e.target.value)}
                 onImageChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                        setProfileImageInput(e.target.files[0]);
                         processFiles([e.target.files[0]], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
                     }
                 }}
@@ -309,6 +291,7 @@ export default function ProfilePage({ userId, onNavigateToProfile, visitedCountr
                 isOpen={isShowingStats}
                 onClose={() => setIsShowingStats(false)}
                 userId={userId}
+                isOwnProfile={isOwnProfile}
             />
             <FollowListModal
                 isOpen={isFollowModalOpen}

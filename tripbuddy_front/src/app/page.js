@@ -9,6 +9,7 @@ const SignIn = () => (
             <div className="card-body">
                 <h3 className="text-center fs-6">Travel Buddy</h3>
                 <h2 className="text-center mb-3">Login</h2>
+                {/*On startup, presents SignInForm with the prop handeSignIn from auth/signIn_handle*/}
                 <SignInForm onSubmit={handleSignIn}/>
             </div>
         </div>

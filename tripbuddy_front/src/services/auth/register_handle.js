@@ -6,23 +6,27 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 export async function handleRegister(formValues) {
     const { email, password, confirmPassword, fullName, birthDate, countryOrigin, gender, profileImage } = formValues;
 
+    // Validate password confirmation
     if (confirmPassword !== password) {
         alert("Passwords don't match");
         return null;
     }
+
     try {
+        // Create user in Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
         console.log('Successfully created user in Firebase Auth with UID:', firebaseUser.uid);
 
-        let profileImageUrl = 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'; // Set's default url to generic picture
+        // Handle profile image upload or use default
+        let profileImageUrl = 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'; // Default profile image
         if (profileImage) {
             const imageRef = ref(storage, `profileImages/${fullName}_(${email})`);
             await uploadBytes(imageRef, profileImage);
             profileImageUrl = await getDownloadURL(imageRef);
-
         }
 
+        // Prepare user data for MongoDB
         const userDataForMongo = {
             firebaseUid: firebaseUser.uid,
             fullName,
@@ -33,10 +37,10 @@ export async function handleRegister(formValues) {
             email,
         };
 
+        // Save user data to MongoDB via API
         const response = await axios.post('http://localhost:5000/api/users', userDataForMongo);
 
-
-        // ✅ השינוי הקריטי: החזר את המשתמש המלא שנוצר וחזר מהשרת
+        // Return the complete user data from server
         return response.data;
 
     } catch (err) {
@@ -45,10 +49,10 @@ export async function handleRegister(formValues) {
         const errorMessage = err.message;
 
         if (err.response) {
-            // שגיאה שהגיעה מהשרת שלנו (למשל, משתמש כבר קיים)
+            // Server error (e.g., user already exists in MongoDB)
             alert(err.response.data.message || 'Registration failed.');
         } else if (errorCode) {
-            // שגיאה שהגיעה מ-Firebase
+            // Firebase Auth error
             switch (errorCode) {
                 case 'auth/email-already-in-use':
                     alert("The email selected is already in use");
@@ -64,6 +68,7 @@ export async function handleRegister(formValues) {
                     break;
             }
         } else {
+            // Unknown error
             alert('An unknown error occurred.');
         }
         return null;

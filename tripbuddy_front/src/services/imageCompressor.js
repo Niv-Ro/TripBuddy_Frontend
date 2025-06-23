@@ -1,13 +1,8 @@
-/**
- * דוחס קובץ תמונה באמצעות Canvas בזיכרון.
- * @param {File} file - קובץ התמונה המקורי.
- * @param {object} options - אופציות דחיסה.
- * @returns {Promise<File>} - מחזיר Promise שמכיל את הקובץ הדחוס.
- */
 export function compressImage(file, options = {}) {
     return new Promise((resolve, reject) => {
         const { maxWidth = 1200, maxHeight = 1200, quality = 0.8 } = options;
 
+        // Skip compression for non-image files
         if (!file.type.startsWith('image/')) {
             resolve(file);
             return;
@@ -20,6 +15,7 @@ export function compressImage(file, options = {}) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
+            // Calculate new dimensions while maintaining aspect ratio
             let { width, height } = img;
             if (width > height) {
                 if (width > maxWidth) {
@@ -33,10 +29,12 @@ export function compressImage(file, options = {}) {
                 }
             }
 
+            // Set canvas size and draw resized image
             canvas.width = width;
             canvas.height = height;
             ctx.drawImage(img, 0, 0, width, height);
 
+            // Convert canvas to compressed file
             canvas.toBlob(
                 (blob) => {
                     if (blob) {
@@ -49,11 +47,13 @@ export function compressImage(file, options = {}) {
                 'image/jpeg',
                 quality
             );
+
+            // Clean up object URL
             URL.revokeObjectURL(img.src);
         };
 
         img.onerror = (error) => {
-            URL.revokeObjectURL(img.src);
+            URL.revokeObjectURL(img.src); // Clean up on error
             reject(error);
         };
     });

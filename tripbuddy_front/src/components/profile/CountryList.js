@@ -12,7 +12,7 @@ export default function CountryList({ title, countries, onAddRequest, onRemove, 
             <div className="d-flex align-items-baseline">
                 <h5 className="mb-2 px-2">{title} ({countries.length} / {allCountries.length})</h5>
 
-                {/* ✅ Conditionally render the statistics only for the "Visited" list. */}
+                {/* Conditionally render the statistics only for the "Visited" list. */}
                 {isVisitedList && allCountries.length > 0 && (
                     <small className="text-muted fw-light">
                         {`(visited ${((countries.length / allCountries.length) * 100).toFixed(1)}% of the world)`}

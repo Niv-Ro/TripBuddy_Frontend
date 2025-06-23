@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 
 export default function useCountries() {
-    // --- State and Hooks ---
     const [countries, setCountries] = useState([]);
 
     useEffect(() => {
