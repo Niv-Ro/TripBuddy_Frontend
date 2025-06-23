@@ -1,137 +1,137 @@
-"use client"
-import React, {useEffect, useState, useCallback, useMemo} from "react";
-import axios from "axios";
-import { useAuth } from "@/context/AuthContext";
-import useCountries from "@/hooks/useCountries";
-import CreatePost from "@/components/CreatePost";
-import PostCard from "@/components/PostCard";
+"use client";
+import React, { useState, useEffect, useMemo } from 'react';
+import axios from 'axios';
+import { useAuth } from '@/context/AuthContext';
+import useCountries from '@/hooks/useCountries';
+import PostCard from './PostCard';
+import CreatePost from './CreatePost'; // נייבא את רכיב יצירת הפוסט
 
-export default function Feed({ onNavigateToProfile }) {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [allPosts, setAllPosts] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [selectedCountry, setSelectedCountry] = useState('all');
-
+export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const { mongoUser } = useAuth();
     const allCountries = useCountries();
 
-    const fetchPosts = useCallback(() => {
-        if (!mongoUser) return;
-        setIsLoading(true);
-        axios.get(`http://localhost:5000/api/posts/feed/${mongoUser._id}`)
-            .then(res => { setAllPosts(res.data); })
-            .catch(err => { console.error("Failed to fetch posts:", err); })
-            .finally(() => { setIsLoading(false); });
-    }, [mongoUser]);
+    const [group, setGroup] = useState(null);
+    const [posts, setPosts] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-    useEffect(() => {
-        fetchPosts();
-    }, [fetchPosts]);
+    const fetchGroupData = () => {
+        if (groupId) {
+            setIsLoading(true);
+            const fetchGroupDetails = axios.get(`http://localhost:5000/api/groups/${groupId}`);
+            const fetchGroupPosts = axios.get(`http://localhost:5000/api/posts/group/${groupId}`);
 
-    const handlePostCreated = () => {
-        setIsCreateModalOpen(false);
-        // 🔥 איפוס הפילטרים מבטיח שתראה את הפוסט החדש
-        setSearchTerm('');
-        setSelectedCountry('all');
-        fetchPosts();
-    };
-
-    const handleUpdatePost = (updatedPost) => {
-        setAllPosts(prevPosts =>
-            prevPosts.map(p => (p._id === updatedPost._id ? updatedPost : p))
-        );
-    };
-
-    const handleDeletePost = async (postId) => {
-        if (window.confirm("Are you sure you want to delete this post?")) {
-            try {
-                await axios.delete(`http://localhost:5000/api/posts/${postId}`);
-                setAllPosts(prevPosts => prevPosts.filter(p => p._id !== postId));
-            } catch (error) {
-                console.error("Failed to delete post", error);
-                alert("Could not delete post.");
-            }
+            Promise.all([fetchGroupDetails, fetchGroupPosts])
+                .then(([groupRes, postsRes]) => {
+                    setGroup(groupRes.data);
+                    setPosts(postsRes.data);
+                })
+                .catch(err => {
+                    console.error("Failed to load group data", err);
+                    setGroup(null); // במקרה של שגיאה, אפס את נתוני הקבוצה
+                })
+                .finally(() => setIsLoading(false));
         }
     };
 
-    const filteredPosts = useMemo(() => {
-        return allPosts
-            .filter(post => {
-                if (selectedCountry === 'all') {
-                    return true;
-                }
-                return post.taggedCountries?.includes(selectedCountry);
-            })
-            .filter(post => {
-                return post.text.toLowerCase().includes(searchTerm.toLowerCase());
-            });
-    }, [allPosts, selectedCountry, searchTerm]);
+    useEffect(fetchGroupData, [groupId]);
 
-    const filterOptions = useMemo(() => {
-        if (!mongoUser || !allCountries.length) return [];
-        return mongoUser.wishlistCountries?.map(code =>
-            allCountries.find(c => c.code3 === code)
-        ).filter(Boolean);
-    }, [mongoUser, allCountries]);
+    const handlePostCreated = () => {
+        setIsCreateModalOpen(false);
+        fetchGroupData(); // רענן את נתוני הקבוצה והפוסטים שלה
+    };
+
+    // חישוב המדינות, החברים, וההרשאות באמצעות useMemo לשיפור ביצועים
+    const taggedCountryObjects = useMemo(() => {
+        if (!group || !allCountries.length) return [];
+        // הוספנו הגנה (|| []) למקרה שלקבוצות ישנות אין מערך מדינות
+        return (group.countries || []).map(code => allCountries.find(c => c.code3 === code)).filter(Boolean);
+    }, [group, allCountries]);
+
+    const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
+    const isMember = useMemo(() => approvedMembers.some(member => member.user?._id === mongoUser?._id), [approvedMembers, mongoUser]);
+    const isAdmin = useMemo(() => group?.admin?._id === mongoUser?._id, [group, mongoUser]);
+
+    if (isLoading) return <p className="text-center p-5">Loading group...</p>;
+
+    if (!group) return (
+        <div className="text-center p-5">
+            <h4>Group Not Found</h4>
+            <p>This group may not exist or you may not have permission to view it.</p>
+            <button className="btn btn-secondary" onClick={onBack}>← Back to Groups</button>
+        </div>
+    );
 
     return (
-        <div className="d-flex flex-column" style={{ height: '100%' }}>
-            {/* Top Bar */}
-            <nav className="bg-white border-bottom shadow-sm p-3 d-flex align-items-center flex-shrink-0">
-                <h2 className="me-4 mb-0">Feed</h2>
-                <input
-                    type="text"
-                    placeholder="Search posts..."
-                    className="form-control w-50 mx-auto"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <select
-                    className="form-select w-auto ms-3" // הוספתי רווח
-                    value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
-                >
-                    <option value="all">All Wishlist Countries</option>
-                    {filterOptions.map(country => (
-                        <option key={country.code3} value={country.code3}>
-                            {country.name}
-                        </option>
-                    ))}
-                </select>
-                <div className="ms-auto">
-                    <button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>
-                        + New post
-                    </button>
+        <div>
+            {/* כותרת העמוד */}
+            <nav className="bg-light border-bottom p-3 d-flex align-items-center justify-content-between">
+                <div className="d-flex align-items-center">
+                    <button className="btn btn-secondary me-3" onClick={onBack}>←</button>
+                    <div>
+                        <h3 className="mb-1">{group.name}</h3>
+                        <p className="mb-2 text-muted small">{group.description}</p>
+                        {taggedCountryObjects.length > 0 && (
+                            <div className="d-flex flex-wrap gap-1">
+                                {taggedCountryObjects.map(country => (
+                                    <span key={country.code} className="badge bg-white text-dark fw-normal border">
+                                        <img src={country.flag} alt={country.name} style={{ width: '16px', height: '12px', marginRight: '5px' }} />
+                                        {country.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
+                {isAdmin && <button className="btn btn-outline-primary btn-sm">Invite Member</button>}
             </nav>
 
-            {/* Main Content Area */}
-            <div className="flex-grow-1 overflow-y-auto p-4 bg-light">
-                {isLoading ? (
-                    <p className="text-center text-muted">Loading posts...</p>
-                ) : filteredPosts.length > 0 ? (
-                    filteredPosts.map(post => (
-                        <PostCard
-                            key={post._id}
-                            post={post}
-                            currentUserMongoId={mongoUser?._id}
-                            onUpdate={handleUpdatePost}
-                            onDelete={handleDeletePost}
-                            onNavigateToProfile={onNavigateToProfile}
-                        />
-                    ))
-                ) : (
-                    <p className="text-muted text-center mt-4">No posts found for the selected filters.</p>
-                )}
-            </div>
+            {/* תוכן העמוד - מוצג רק לחברי קבוצה */}
+            {isMember ? (
+                <div className="container-fluid py-4">
+                    <div className="row">
+                        <div className="col-md-8">
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <h4 className="mb-0">Group Feed</h4>
+                                <button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>+ New Post in Group</button>
+                            </div>
+                            <hr/>
+                            {posts.length > 0 ? (
+                                posts.map(post => <PostCard key={post._id} post={post} onNavigateToProfile={onNavigateToProfile} />)
+                            ) : (
+                                <p className="text-muted mt-4">This group has no posts yet. Be the first to contribute!</p>
+                            )}
+                        </div>
+                        <div className="col-md-4">
+                            <div className="card">
+                                <div className="card-header">{approvedMembers.length} Members</div>
+                                <ul className="list-group list-group-flush">
+                                    {approvedMembers.map(({ user }) => (
+                                        <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
+                                            <span>{user.fullName} {group.admin._id === user._id && '(Admin)'}</span>
+                                            {isAdmin && user._id !== group.admin._id && (
+                                                <button className="btn btn-sm btn-outline-danger py-0">Remove</button>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center p-5">
+                    <h4>This is a private group.</h4>
+                    <p>Join the group to see posts and discussions.</p>
+                    <button className="btn btn-primary">Request to Join</button>
+                </div>
+            )}
 
-            {/* Modal for Creating a New Post */}
             {isCreateModalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content">
                         <button className="modal-close-btn" onClick={() => setIsCreateModalOpen(false)}>&times;</button>
-                        <CreatePost onPostCreated={handlePostCreated} />
+                        <CreatePost onPostCreated={handlePostCreated} groupId={groupId} />
                     </div>
                 </div>
             )}

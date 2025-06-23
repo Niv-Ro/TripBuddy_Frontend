@@ -11,7 +11,6 @@ import GroupsPage from "@/components/GroupsPage";
 import GroupView from "@/components/GroupView";
 
 
-// A separate Sidebar component for cleanliness
 const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId}) => (
     <nav
         className="bg-light border-end d-flex flex-column p-3 align-items-center"
@@ -25,8 +24,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                     <div className="d-inline-flex flex-column align-items-center">
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
-                            <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3"
-                                  fill="none"/>
+                            <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3" fill="none"/>
                             <rect x="24" y="26" width="16" height="4" rx="2" fill="#555"/>
                             <rect x="24" y="32" width="12" height="4" rx="2" fill="#555"/>
                             <rect x="24" y="38" width="8" height="4" rx="2" fill="#555"/>
@@ -39,14 +37,11 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="3" fill="#fff"/>
                             <circle cx="32" cy="30" r="7" stroke="#555" strokeWidth="3" fill="none"/>
-                            <path d="M24 45c1-5 15-5 16 0" stroke="#555" strokeWidth="3" fill="none"
-                                  strokeLinecap="round"/>
+                            <path d="M24 45c1-5 15-5 16 0" stroke="#555" strokeWidth="3" fill="none" strokeLinecap="round"/>
                             <circle cx="20" cy="37" r="5" stroke="#555" strokeWidth="3" fill="none"/>
-                            <path d="M14 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none"
-                                  strokeLinecap="round"/>
+                            <path d="M14 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none" strokeLinecap="round"/>
                             <circle cx="44" cy="37" r="5" stroke="#555" strokeWidth="3" fill="none"/>
-                            <path d="M39 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none"
-                                  strokeLinecap="round"/>
+                            <path d="M39 47c1-4 10-4 11 0" stroke="#555" strokeWidth="3" fill="none" strokeLinecap="round"/>
                         </svg>
                         <span className="mt-1">Travel Groups</span>
                     </div>
@@ -56,8 +51,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="29" cy="29" r="10" stroke="#555" strokeWidth="3" fill="none"/>
-                            <rect x="37" y="37" width="12" height="4" rx="2" transform="rotate(45 37 37)"
-                                  fill="#555"/>
+                            <rect x="37" y="37" width="12" height="4" rx="2" transform="rotate(45 37 37)" fill="#555"/>
                         </svg>
                         <span className="mt-1">Search Buddies</span>
                     </div>
@@ -78,8 +72,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                     <div className="d-inline-flex flex-column align-items-center">
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
-                            <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" strokeWidth="3"
-                                  fill="none"/>
+                            <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" strokeWidth="3" fill="none"/>
                             <polygon points="32,43 38,38 26,38" fill="#7863ad"/>
                             <circle cx="25" cy="30" r="2" fill="#7863ad"/>
                             <circle cx="32" cy="30" r="2" fill="#7863ad"/>
@@ -93,13 +86,11 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
                         <svg width="50" height="50" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="32" cy="26" r="10" stroke="#555" strokeWidth="3"/>
-                            <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none"
-                                  strokeLinecap="round"/>
+                            <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none" strokeLinecap="round"/>
                         </svg>
                         <span className="mt-1">My Profile</span>
                     </div>
                 </button>
-
             </div>
         </div>
         <div className="mt-auto">
@@ -112,34 +103,21 @@ export default function MainScreenPage() {
     const {mongoUser} = useAuth();
     const [view, setView] = useState('feed');
     const [viewedUserId, setViewedUserId] = useState(null);
-    const [viewedCountryCode, setViewedCountryCode] = useState(null)
     const [viewedGroupId, setViewedGroupId] = useState(null);
 
     useEffect(() => {
-        // This effect sets the initial profile to the logged-in user's profile
-        if (mongoUser && view !== 'profile') {
+        if (mongoUser && !viewedUserId) {
             setViewedUserId(mongoUser._id);
         }
     }, [mongoUser]);
 
-    // ✅ --- התיקון המרכזי נמצא כאן ---
-    // This function can now handle both a string ID and a user object
     const navigateToProfile = (data) => {
-        // 'data' can be either a string ID (from the sidebar) or a user object (from search)
         const idToView = (typeof data === 'object' && data !== null) ? data._id : data;
-
         if (idToView) {
             setViewedUserId(idToView);
             setView('profile');
         } else {
             console.error("Navigation to profile failed: ID is missing or invalid.", data);
-        }
-    };
-
-    const navigateToCountry = (countryCode) => {
-        if (countryCode) {
-            setViewedCountryCode(countryCode);
-            setView('country');
         }
     };
 
@@ -168,14 +146,13 @@ export default function MainScreenPage() {
             Content = viewedUserId ? <Profile key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
             break;
         case 'search':
-            // The prop name MUST be 'onUserSelect' as expected by the UserSearch component
             Content = <UserSearch onUserSelect={navigateToProfile} />;
             break;
         case 'groups':
             Content = <GroupsPage onViewGroup={navigateToGroupView} />;
             break;
         case 'group-view':
-            Content = <GroupView groupId={viewedGroupId} onBack={navigateToGroups} onNavigateToProfile={navigateToProfile} />;
+            Content = <GroupView key={viewedGroupId} groupId={viewedGroupId} onBack={navigateToGroups} onNavigateToProfile={navigateToProfile} />;
             break;
         default:
             Content = <Feed onNavigateToProfile={navigateToProfile} />;
