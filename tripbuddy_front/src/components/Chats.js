@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import axios from 'axios';
 import NewChat from './NewChat';
 import ChatWindow from "./ChatWindow";
+import io from 'socket.io-client';
 
 function Chats() {
     const { mongoUser, loading } = useAuth();
@@ -33,6 +34,44 @@ function Chats() {
             fetchChats();
         }
     }, [mongoUser, loading]);
+
+    useEffect(() => {
+        if (!mongoUser) return;
+
+        socketRef.current = io(ENDPOINT);
+        const socket = socketRef.current;
+
+        socket.emit('setup', mongoUser._id);
+
+        const handleNewMessage = (newMessageReceived) => {
+            // בדוק אם הצ'אט של ההודעה החדשה כבר קיים ברשימה
+            const chatExists = conversations.some(c => c._id === newMessageReceived.chat._id);
+            if (!chatExists) {
+                // אם לא, זהו צ'אט חדש! טען מחדש את הרשימה
+                fetchChats();
+            } else {
+                // אם הצ'אט קיים, עדכן את ההודעה האחרונה שלו ואת סדר המיון
+                setConversations(prev => {
+                    const updatedConversations = prev.map(convo => {
+                        if (convo._id === newMessageReceived.chat._id) {
+                            return { ...convo, latestMessage: newMessageReceived, updatedAt: newMessageReceived.updatedAt };
+                        }
+                        return convo;
+                    });
+                    // מיין מחדש כדי שהצ'אט המעודכן יקפוץ למעלה
+                    return updatedConversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                });
+            }
+        };
+
+        socket.on('message received', handleNewMessage);
+
+        return () => {
+            socket.off('message received', handleNewMessage);
+            socket.disconnect();
+        };
+    }, [mongoUser, conversations, fetchChats]); // הוספנו תלות ב-conversations
+
 
     const getChatName = (chat) => {
         if (!mongoUser || !chat.members) return "Chat";

@@ -12,7 +12,7 @@ function ChatWindow({ chat, onBack }) {
     const [newMessage, setNewMessage] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
-    const socketRef = useRef(); // שימוש ב-useRef לשמירת ה-socket
+    const socketRef = useRef();
     const messagesEndRef = useRef(null);
 
     // טעינת היסטוריית ההודעות
@@ -36,13 +36,14 @@ function ChatWindow({ chat, onBack }) {
         socket.emit('join chat', chat._id);
 
         const handleNewMessage = (newMessageReceived) => {
-            if (chat?._id === newMessageReceived.chat._id) {
+            if (newMessageReceived.chat._id === chat._id) {
                 setMessages(prevMessages => [...prevMessages, newMessageReceived]);
             }
         };
 
         socket.on('message received', handleNewMessage);
 
+        // פונקציית ניקוי חשובה
         return () => {
             socket.off('message received', handleNewMessage);
             socket.disconnect();
@@ -71,6 +72,7 @@ function ChatWindow({ chat, onBack }) {
         }
     };
 
+    // גלילה אוטומטית לתחתית
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
