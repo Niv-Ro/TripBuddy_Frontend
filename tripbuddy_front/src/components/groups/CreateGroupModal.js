@@ -11,7 +11,7 @@ import { useFileProcessor } from '@/hooks/useFileProcessor';
 export default function CreateGroupModal({ onClose, onGroupCreated }) {
     const { mongoUser } = useAuth();
     const allCountries = useCountries();
-    const { processFiles, processedFiles, isProcessing, reset } = useFileProcessor();
+    const { processFiles, processedFiles, isProcessing, reset } = useFileProcessor();  //Our custom hook for image processing
 
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -21,26 +21,31 @@ export default function CreateGroupModal({ onClose, onGroupCreated }) {
     const [error, setError] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
+    // Adds a country to the taggedCountries state, preventing duplicates.
     const handleAddCountry = (country) => {
         if (!taggedCountries.some(c => c.code === country.code)) {
             setTaggedCountries(prev => [...prev, country]);
         }
         setIsSearching(false);
     };
+    // Removes a country from the taggedCountries state.
     const handleRemoveCountry = (countryCode) => {
         setTaggedCountries(prev => prev.filter(c => c.code !== countryCode));
     };
 
+    // Triggers the file processing hook when a user selects an image.
     const handleImageChange = (e) => {
         if (e.target.files && e.target.files[0]) {
+            //Process group picture
             processFiles([e.target.files[0]], { maxWidth: 800, maxHeight: 800, quality: 0.85 });
         }
     };
 
+    // The main submission, entire creation process.
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!name || taggedCountries.length === 0) {
-            setError('Group name and at least one tagged country are required.');
+        if (!name) {
+            setError('Group must have a name.');
             return;
         }
         if (isProcessing) {
@@ -49,28 +54,33 @@ export default function CreateGroupModal({ onClose, onGroupCreated }) {
         }
         setIsUploading(true);
         setError('');
-        let imageUrl = '';
+        let imageUrl = ''; // Will hold group's image url in firebase storage to display on card and group view
         try {
+            // Get the compressed file from our custom hook's state.
             const imageToUpload = processedFiles.length > 0 ? processedFiles[0] : null;
 
+            // If an image was selected, upload it to Firebase Storage.
             if (imageToUpload) {
                 const folder = isPrivate ? "private" : "public";
-                // const imageRef = ref(storage, `groups/${Date.now()}_${imageToUpload.name}`);
-                const imageRef = ref(storage, `groups/${folder}/${name}`);
+                const imageRef = ref(storage, `groups/${folder}/${name}`); //Upload to a readable and clear folder
                 await uploadBytes(imageRef, imageToUpload);
-                imageUrl = await getDownloadURL(imageRef);
+                imageUrl = await getDownloadURL(imageRef);  // Get the public URL of the uploaded image.
             }
+            //  Assemble the final data object to send to our server
             const groupData = {
                 name, description, imageUrl, isPrivate,
                 countries: taggedCountries.map(c => c.code3),
                 adminUserId: mongoUser._id
             };
+            // Send the data to the server API to create the group in MongoDB.
             const res = await axios.post('http://localhost:5000/api/groups', groupData);
+            // Notify the parent component and close the modal.
             onGroupCreated(res.data);
             onClose();
         } catch (err) {
             setError('Failed to create group. Please try again.');
         } finally {
+            // This block runs regardless of success or failure, ensuring the loading state is always reset
             setIsUploading(false);
         }
     };
@@ -102,6 +112,7 @@ export default function CreateGroupModal({ onClose, onGroupCreated }) {
                                 ))}
                             </div>
                         )}
+                        {/* Toggles the visibility of the CountrySearch component. */}
                         {!isSearching && <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setIsSearching(true)}>+ Add Country</button>}
                         {isSearching && <CountrySearch allCountries={allCountries} existingCodes={taggedCountries.map(c => c.code)} onSelectCountry={handleAddCountry} onCancel={() => setIsSearching(false)} />}
                     </div>

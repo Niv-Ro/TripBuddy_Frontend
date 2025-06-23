@@ -14,8 +14,8 @@ import axios from "axios";
 
 export default function MainScreenPage() {
     const {mongoUser, loading, logout,refetchMongoUser} = useAuth();
-    const [viewedUserId, setViewedUserId] = useState(null);
-    const [viewedGroupId, setViewedGroupId] = useState(null);
+    const [viewedUserId, setViewedUserId] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('viewedUserId') : null);
+    const [viewedGroupId, setViewedGroupId] = useState(() => typeof window !== 'undefined' ? localStorage.getItem('viewedGroupId') : null);
 
     const allCountries = useCountries();
     // To pass for relevant pages and maintain only one list to prevent un-necessary server calls
@@ -26,6 +26,16 @@ export default function MainScreenPage() {
     const [view, setView] = useState(() => {
         return localStorage.getItem('currentView') || 'feed';
     });
+
+    useEffect(() => {
+        if (viewedUserId) localStorage.setItem('viewedUserId', viewedUserId);
+    }, [viewedUserId]);
+
+    useEffect(() => {
+        if (viewedGroupId) localStorage.setItem('viewedGroupId', viewedGroupId);
+        else localStorage.removeItem('viewedGroupId'); // נקה אם אין קבוצה פעילה
+    }, [viewedGroupId]);
+
 
     //Saves the current page, when user refreshes they stay on the same page, with the help of local storage
     useEffect(() => {

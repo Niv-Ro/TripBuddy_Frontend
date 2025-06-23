@@ -3,61 +3,46 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import debounce from 'lodash.debounce';
 import useCountries from '@/hooks/useCountries';
+import GroupCard from './GroupCard'; // Imports the reusable GroupCard component.
 
 export default function GroupSearch({ onViewGroup }) {
+    // State to hold the user's search query and selected filter type.
     const [query, setQuery] = useState('');
     const [searchType, setSearchType] = useState('name');
+
+    // State for the search results and loading indicator.
     const [results, setResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const allCountries = useCountries();
 
-    // Create a mapping of country names to codes for easier lookup
-    const countryNameToCode = useMemo(() => {
-        const mapping = {};
-        allCountries.forEach(country => {
-            // Map both full name and partial matches
-            mapping[country.name.toLowerCase()] = country.code;
-            // Also map common variations
-            const words = country.name.toLowerCase().split(' ');
-            words.forEach(word => {
-                if (word.length > 2) { // Only for words longer than 2 characters
-                    mapping[word] = country.code;
-                }
-            });
-        });
-        return mapping;
-    }, [allCountries]);
-
-    // Function to find country code from country name
+    // A memoized helper function to find a country's various codes from a search term.
     const findCountryCode = useCallback((searchTerm) => {
         const term = searchTerm.toLowerCase().trim();
-
-        // Try to find the country by name
         const matchingCountry = allCountries.find(country =>
             country.name.toLowerCase().includes(term)
         );
-
         if (matchingCountry) {
-            // Return all possible country codes for better matching
             return {
-                code: matchingCountry.code,      // 2-letter (e.g., 'IL')
-                code3: matchingCountry.code3,    // 3-letter (e.g., 'ISR')
-                ccn3: matchingCountry.ccn3       // 3-digit numeric (e.g., '376')
+                code: matchingCountry.code,
+                code3: matchingCountry.code3,
+                ccn3: matchingCountry.ccn3
             };
         }
-
         return null;
     }, [allCountries]);
 
+    // The main function that sends the search request to the backend API.
     const fetchGroups = useCallback(async (searchQuery, type) => {
+        // Prevents sending requests for empty or very short queries.
         if (!searchQuery || searchQuery.length < 2) {
             setResults([]);
             return;
         }
         setIsLoading(true);
         try {
-            const params = {};
+            const params = {}; // The query parameters object for the GET request.
 
+            // This switch builds the `params` object based on the selected search type.
             switch (type) {
                 case 'name':
                     params.q = searchQuery;
@@ -66,25 +51,19 @@ export default function GroupSearch({ onViewGroup }) {
                     params.adminName = searchQuery;
                     break;
                 case 'country':
-                    // Convert country name to country codes and try all formats
                     const countryInfo = findCountryCode(searchQuery);
                     if (countryInfo) {
-                        // Try all possible country code formats
-                        params.country = countryInfo.code3; // Try 3-letter first (most common)
-                        // We'll also add a special parameter to try other formats if the first doesn't work
-                        params.countryCode2 = countryInfo.code;  // 2-letter
-                        params.countryCodeNumeric = countryInfo.ccn3; // numeric
+                        params.country = countryInfo.code3;
                     } else {
-                        // If no country code found, search by name directly
                         params.countryName = searchQuery;
                     }
                     break;
                 default:
-                    // Default to name search
                     params.q = searchQuery;
                     break;
             }
 
+            // Makes the API call with the constructed parameters.
             const res = await axios.get(`http://localhost:5000/api/groups/search`, { params });
             setResults(res.data);
         } catch (err) {
@@ -95,13 +74,18 @@ export default function GroupSearch({ onViewGroup }) {
         }
     }, [findCountryCode]);
 
+    // Creates a "debounced" version of the fetch function for performance.
+    // It waits 400ms after the user stops typing before making the API call.
     const debouncedFetchGroups = useCallback(debounce(fetchGroups, 400), [fetchGroups]);
 
+    // This effect connects the user's input to the debounced search function.
     useEffect(() => {
         debouncedFetchGroups(query, searchType);
+        // The cleanup function cancels any pending API call if the component unmounts.
         return () => debouncedFetchGroups.cancel();
     }, [query, searchType, debouncedFetchGroups]);
 
+    // A helper function to set the input's placeholder text dynamically.
     const getPlaceholderText = () => {
         switch (searchType) {
             case 'name':
@@ -115,97 +99,11 @@ export default function GroupSearch({ onViewGroup }) {
         }
     };
 
-    // Function to get country name from country code for display
-    const getCountryName = useCallback((countryCode) => {
-        const country = allCountries.find(c => c.code === countryCode || c.code3 === countryCode);
-        return country ? country.name : countryCode;
-    }, [allCountries]);
-
-    const GroupCard = ({ group }) => {
-        const groupCountries = (group.countries || []).map(code => {
-            // Try to find by code3 first, then by code
-            return allCountries.find(c => c.code3 === code || c.code === code);
-        }).filter(Boolean);
-
-        return (
-            <div className="col-lg-3 col-md-6 col-sm-12 mb-4">
-                <div className="card h-100 shadow-sm hover-shadow" style={{ cursor: 'pointer', transition: 'all 0.3s ease' }} onClick={() => onViewGroup(group._id)}>
-                    <div style={{ height: '200px', overflow: 'hidden' }}>
-                        <img
-                            src={group.imageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(group.name)}&background=random&color=fff&size=200`}
-                            alt={group.name}
-                            className="card-img-top"
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                            }}
-                            onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/200/e9ecef/6c757d?text=Image';
-                            }}
-                        />
-                    </div>
-
-                    <div className="card-body d-flex flex-column">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                            <h5 className="card-title mb-0" style={{ fontSize: '1.1rem', fontWeight: '600' }}>{group.name}</h5>
-                            <span className={`badge ${group.isPrivate ? 'bg-warning text-dark' : 'bg-success'}`} style={{ fontSize: '0.75rem' }}>
-                                {group.isPrivate ? 'Private' : 'Public'}
-                            </span>
-                        </div>
-
-                        <p className="card-text text-muted mb-2" style={{
-                            fontSize: '0.9rem',
-                            overflow: 'hidden',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical'
-                        }}>
-                            {group.description || 'No description available'}
-                        </p>
-
-                        <small className="text-muted mb-2">
-                            <strong>Admin:</strong> {group.admin?.fullName || 'N/A'}
-                        </small>
-
-                        {groupCountries.length > 0 && (
-                            <div className="mb-2">
-                                <div className="d-flex flex-wrap gap-1">
-                                    {groupCountries.slice(0, 3).map(country => (
-                                        <span key={country.code} className="badge bg-light text-dark fw-normal border" style={{ fontSize: '0.7rem' }}>
-                                            <img src={country.flag} alt={country.name} style={{ width: '12px', height: '9px', marginRight: '3px' }} />
-                                            {country.name}
-                                        </span>
-                                    ))}
-                                    {groupCountries.length > 3 && (
-                                        <span className="badge bg-secondary" style={{ fontSize: '0.7rem' }}>
-                                            +{groupCountries.length - 3} more
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        <div className="mt-auto pt-2">
-                            <small className="text-muted">
-                                <i className="fas fa-users me-1"></i>
-                                {(group.members || []).length} member{(group.members || []).length !== 1 ? 's' : ''}
-                            </small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Show country suggestions when searching by country
+    // A helper function to generate suggestions for the country search input's datalist.
     const getCountrySuggestions = () => {
         if (searchType !== 'country' || !query || query.length < 2) return [];
-
         return allCountries
-            .filter(country =>
-                country.name.toLowerCase().includes(query.toLowerCase())
-            )
+            .filter(country => country.name.toLowerCase().includes(query.toLowerCase()))
             .slice(0, 5)
             .map(country => country.name);
     };
@@ -216,9 +114,11 @@ export default function GroupSearch({ onViewGroup }) {
         <div>
             <h4 className="mb-4">Find New Groups</h4>
 
+            {/* Search Controls Section */}
             <div className="mb-4">
                 <div className="row g-3">
                     <div className="col-md-3">
+                        {/* Dropdown to select the search type */}
                         <select
                             className="form-select"
                             value={searchType}
@@ -231,6 +131,7 @@ export default function GroupSearch({ onViewGroup }) {
                     </div>
                     <div className="col-md-9">
                         <div className="position-relative">
+                            {/* The main text input for the search query */}
                             <input
                                 type="text"
                                 value={query}
@@ -239,11 +140,10 @@ export default function GroupSearch({ onViewGroup }) {
                                 placeholder={getPlaceholderText()}
                                 list={searchType === 'country' ? 'country-suggestions' : undefined}
                             />
+                            {/* Provides autocomplete suggestions for country search */}
                             {searchType === 'country' && (
                                 <datalist id="country-suggestions">
-                                    {countrySuggestions.map(countryName => (
-                                        <option key={countryName} value={countryName} />
-                                    ))}
+                                    {countrySuggestions.map(countryName => ( <option key={countryName} value={countryName} /> ))}
                                 </datalist>
                             )}
                         </div>
@@ -251,11 +151,12 @@ export default function GroupSearch({ onViewGroup }) {
                 </div>
                 <small className="text-muted mt-2 d-block">
                     {searchType === 'name' && 'Searching in group names and descriptions'}
-                    {searchType === 'country' && 'Searching in group countries - type full country names like "Israel" or "United States"'}
+                    {searchType === 'country' && 'Searching in group countries'}
                     {searchType === 'admin' && 'Searching in admin names only'}
                 </small>
             </div>
 
+            {/* Shows a spinner only when a search is actively in progress. */}
             {isLoading && (
                 <div className="text-center p-4">
                     <div className="spinner-border" role="status">
@@ -263,49 +164,29 @@ export default function GroupSearch({ onViewGroup }) {
                     </div>
                 </div>
             )}
-
-            {results.length > 0 && (
+            {/* Renders the results grid only if there are results and we are not loading. */}
+            {results.length > 0 && !isLoading && (
                 <div className="row">
+                    {/* Maps over the results array and renders an imported card for each group. */}
                     {results.map(group => (
-                        <GroupCard key={group._id} group={group} />
+                        <GroupCard key={group._id} group={group} onViewGroup={onViewGroup} allCountries={allCountries} />
                     ))}
                 </div>
             )}
-
+            {/* Shows a "No Results" message only if a search was performed but returned empty. */}
             {results.length === 0 && query.length > 1 && !isLoading && (
                 <div className="text-center p-5 bg-light rounded">
-                    <i className="fas fa-search fa-3x text-muted mb-3"></i>
                     <h5 className="text-muted">No Groups Found</h5>
-                    <p className="text-muted">No public groups found matching "<strong>{query}</strong>".</p>
-                    {searchType === 'country' && (
-                        <small className="text-muted">
-                            Try searching with the full country name (e.g., "Israel", "United States", "Germany")
-                        </small>
-                    )}
+                    <p className="text-muted">No groups found matching "<strong>{query}</strong>".</p>
                 </div>
             )}
-
-            {query.length < 2 && (
+            {/* Shows the initial prompt before the user has started typing. */}
+            {query.length < 2 && !isLoading && (
                 <div className="text-center p-5 bg-light rounded">
-                    <i className="fas fa-users fa-3x text-muted mb-3"></i>
                     <h5 className="text-muted">Search for Groups</h5>
                     <p className="text-muted">Enter at least 2 characters to start searching.</p>
                 </div>
             )}
-
-            <style jsx>{`
-                .hover-shadow:hover {
-                    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
-                    transform: translateY(-2px);
-                }
-                .card {
-                    transition: all 0.3s ease;
-                    border: 1px solid #e3e6f0;
-                }
-                .card:hover {
-                    border-color: #5a5c69;
-                }
-            `}</style>
         </div>
     );
 }

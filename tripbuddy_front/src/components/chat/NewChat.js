@@ -4,42 +4,51 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import UserSearch from '../groups/UserSearch';
 
+//onChatCreated - callback function that receives the newly created chat and typically switches the view to that chat
 function NewChat({ onChatCreated }) {
     const { mongoUser } = useAuth();
-    const [selectedUsers, setSelectedUsers] = useState([]);
+    const [selectedUsers, setSelectedUsers] = useState([]); // array of users selected to include in the chat
     const [isLoading, setIsLoading] = useState(false);
     const [groupName, setGroupName] = useState('');
 
+    //select users to add section
     const handleUserSelect = (user) => {
-        // מנע הוספה של משתמש שכבר קיים ברשימה
+        // prevent re adding user to the list
         if (!selectedUsers.some(u => u._id === user._id)) {
             setSelectedUsers(prev => [...prev, user]);
         }
     };
 
+    // remove user from adding list
     const handleRemoveUser = (userId) => {
         setSelectedUsers(prev => prev.filter(u => u._id !== userId));
     };
 
+    //Main Chat Creation Logic
     const handleCreateChat = async () => {
         if (!mongoUser) return;
         setIsLoading(true);
 
         try {
+            //if only one user has been selected - 1 on 1 chat
+            //api call to add new 1 on 1 chat
             if (selectedUsers.length === 1) {
-                // יצירת צ'אט פרטי
                 const { data } = await axios.post('http://localhost:5000/api/chats', {
                     currentUserId: mongoUser._id,
                     targetUserId: selectedUsers[0]._id
                 });
                 onChatCreated(data);
             } else {
-                // יצירת צ'אט קבוצתי
+                // if more users has been selected - group chat
+                //must provide a name for group chats "!groupName.trim()"
                 if (!groupName.trim()) {
                     alert("Please provide a name for the group chat.");
                     setIsLoading(false);
                     return;
                 }
+                //Extracts member IDs from selected users to add
+                //Sets current user as admin
+                //api call to add new group chat
                 const memberIds = selectedUsers.map(u => u._id);
                 const { data } = await axios.post('http://localhost:5000/api/chats/group', {
                     name: groupName,
@@ -59,8 +68,7 @@ function NewChat({ onChatCreated }) {
     return (
         <div className="p-4">
             <h4 className="mb-3">Start a New Conversation</h4>
-
-            {/* אם נבחרו יותר ממשתמש אחד, הצג שדה לשם הקבוצה */}
+            {/* if the is more than one user selected show the group name input label */}
             {selectedUsers.length > 1 && (
                 <div className="mb-3">
                     <label className="form-label">Group Chat Name</label>
@@ -73,12 +81,12 @@ function NewChat({ onChatCreated }) {
                     />
                 </div>
             )}
-
-            {/* הצגת המשתמשים שנבחרו */}
+            {/* presenting the selected user list */}
             {selectedUsers.length > 0 && (
                 <div className="mb-3">
                     <p>Selected:</p>
                     <div className="d-flex flex-wrap gap-2">
+                        {/*present each selected user it's name and "x" to remove from list*/}
                         {selectedUsers.map(user => (
                             <span key={user._id} className="badge bg-primary d-flex align-items-center">
                                 {user.fullName}
@@ -89,12 +97,15 @@ function NewChat({ onChatCreated }) {
                 </div>
             )}
 
+            {/* user search section */}
             <UserSearch
                 title="Search for users to chat with"
                 onUserSelect={handleUserSelect}
                 existingMemberIds={selectedUsers.map(u => u._id)}
+                displayMode="list"
             />
 
+            {/*stat chat button */}
             <button
                 className="btn btn-success mt-3"
                 onClick={handleCreateChat}

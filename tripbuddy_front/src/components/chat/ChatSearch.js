@@ -7,9 +7,10 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
     const { mongoUser } = useAuth();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
+    const [isSearching, setIsSearching] = useState(false); // to know when loading
 
     // Get IDs of chats user is already a member of - memoized to prevent infinite re-renders
+    // To filter out chats user is already in from search results
     const myChatsIds = useMemo(() => myChats.map(chat => chat._id), [myChats]);
 
     // Search for public chats and filter out user's existing chats
@@ -33,18 +34,19 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                 } finally {
                     setIsSearching(false);
                 }
-            }, 300); // Debounce search
-
+            }, 300); // Debounce search.
+            // when user typing im waiting 300 ms and only then search.
+            // if the user types again before 300 ms we will start the timeout again
+            // we do this in order to minimize api calls
+            // Clears timeout if user types again before 300ms
             return () => clearTimeout(delayedSearch);
         } else {
+            //  If search box is empty, clear results
             setSearchResults([]);
         }
     }, [searchTerm, mongoUser._id, myChatsIds]);
 
-    const handleChatBrowserModeChange = (mode) => {
-        // Remove this function as we no longer need mode switching
-    };
-
+    // Returns the group name, or if not a group, returns the other users name
     const getChatName = (chat) => {
         if (chat.isGroupChat) return chat.name;
         if (!mongoUser || !chat.members) return "Chat";
@@ -84,7 +86,9 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                 </small>
             </div>
 
-            {/* Chat List */}
+            {/* Chat List, first checks if the search term is empty, second checks if we are currently searching,
+            third checks if the searched chats didn't find anything,
+            forth when we find chats.*/}
             <div className="flex-grow-1 overflow-auto">
                 {!searchTerm.trim() ? (
                     <div className="d-flex justify-content-center align-items-center h-100 text-muted">
@@ -111,8 +115,11 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                     <div className="list-group list-group-flush">
                         {displayChats.map(chatItem => {
                             const chatName = getChatName(chatItem);
+                            // gets the array of members in this chat and its length
                             const memberCount = chatItem.members?.length || 0;
+                            // Check if it's not a group chat and has members
                             const otherUser = !chatItem.isGroupChat && chatItem.members ?
+                                // look through all members, find the member who is not the current user and get that member's user object
                                 chatItem.members.find(m => m.user?._id !== mongoUser?._id)?.user : null;
 
                             return (
@@ -125,8 +132,10 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                                     <div className="d-flex align-items-center p-3">
                                         {/* Chat Avatar */}
                                         {chatItem.isGroupChat ? (
+                                            /* if group use this emoji*/
                                             <div className="chat-avatar bg-secondary text-white">👥</div>
                                         ) : (
+                                            /* else use the other user profile picture or the default one, and its name*/
                                             <img
                                                 src={otherUser?.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                                                 alt={otherUser?.fullName}
@@ -153,6 +162,7 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                                                         </small>
                                                     )}
                                                     {chatItem.latestMessage ? (
+                                                        /*Latest message preview or "No messages yet"*/
                                                         <small className="text-muted text-truncate d-block">
                                                             Recent: {chatItem.latestMessage.content}
                                                         </small>
@@ -162,6 +172,7 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                                                 </div>
 
                                                 {chatItem.latestMessage && (
+                                                    /*Last updated date if there are messages*/
                                                     <small className="text-muted">
                                                         {new Date(chatItem.updatedAt).toLocaleDateString()}
                                                     </small>
@@ -176,23 +187,6 @@ function ChatSearch({ onChatSelect, onBack, myChats = [] }) {
                 )}
             </div>
 
-            {/* CSS for chat avatar */}
-            <style jsx>{`
-                .chat-avatar {
-                    width: 45px;
-                    height: 45px;
-                    border-radius: 50%;
-                    object-fit: cover;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 1.5rem;
-                    flex-shrink: 0;
-                }
-                .list-group-item-action:hover {
-                    background-color: #f8f9fa;
-                }
-            `}</style>
         </div>
     );
 }

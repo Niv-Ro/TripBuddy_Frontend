@@ -16,7 +16,23 @@ function getAge(dateString) {
     return age;
 }
 
-// רכיב כרטיסייה להצגת משתמש
+// A small, simple component for list view display.
+const UserListItem = ({ user, onSelect }) => (
+    <div
+        className="list-group-item list-group-item-action d-flex align-items-center gap-3"
+        onClick={() => onSelect(user)}
+        style={{cursor: 'pointer'}}
+    >
+        <img
+            src={user.profileImageUrl || `https://ui-avatars.com/api/?name=${user.fullName.replace(/\s/g, '+')}`}
+            alt={user.fullName}
+            style={{width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover'}}
+        />
+        <span className="fw-medium">{user.fullName}</span>
+    </div>
+);
+
+// A larger component for card view display.
 const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
     <div className="col-lg-3 col-md-4 col-sm-6 mb-4">
         <div className="card h-100 text-center shadow-sm">
@@ -48,7 +64,7 @@ const UserCard = ({ user, isFollowing, onSelect, onFollowToggle }) => (
     </div>
 );
 
-export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
+export default function UserSearch({ onUserSelect, existingMemberIds = [], title, onCancel, displayMode = 'card' }) {
     const { mongoUser, refetchMongoUser } = useAuth();
     const [filters, setFilters] = useState({
         name: '',
@@ -137,6 +153,8 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
                             {isLoading ? <span className="spinner-border spinner-border-sm"></span> : 'Search'}
                         </button>
                     </div>
+                    {/* Cancel button that calls the onCancel prop. */}
+                    {onCancel && <div className="col-auto"><button className="btn btn-outline-secondary w-100" onClick={onCancel}>Cancel</button></div>}
                 </div>
             </div>
 
@@ -144,18 +162,17 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [] }) {
 
             {isLoading && <div className="text-center"><div className="spinner-border" role="status"><span className="visually-hidden">Loading...</span></div></div>}
 
+            {/* Conditional rendering based on the new `displayMode` prop. */}
             {!isLoading && results.length > 0 && (
-                <div className="row">
-                    {results.map(user => (
-                        <UserCard
-                            key={user._id}
-                            user={user}
-                            onSelect={onUserSelect}
-                            onFollowToggle={handleFollowToggleInSearch}
-                            isFollowing={mongoUser?.following.includes(user._id)}
-                        />
-                    ))}
-                </div>
+                displayMode === 'card' ? (
+                    <div className="row">
+                        {results.map(user => <UserCard key={user._id} user={user} onSelect={onUserSelect} />)}
+                    </div>
+                ) : (
+                    <div className="list-group" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {results.map(user => <UserListItem key={user._id} user={user} onSelect={onUserSelect}  />)}
+                    </div>
+                )
             )}
 
             {!isLoading && results.length === 0 && hasSearched && (

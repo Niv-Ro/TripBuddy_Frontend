@@ -131,8 +131,8 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(33, 37, 41, 0.6); /* Standard dark overlay */
-    backdrop-filter: blur(2px); /* Frosted glass effect on the background */
+    background-color: rgba(0, 0, 0, 0.5); /* שונה לשחור עם שקיפות */
+    backdrop-filter: blur(3px); /* הגברת הטשטוש */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -140,23 +140,56 @@
 }
 
 .modal-content {
-    background-color: #ffffff; /* Ensures a solid white background for the entire modal */
-    color: #212529;
-    border: none;
+    background-color: #ffffff !important; /* כפיית רקע לבן */
+    color: #212529 !important; /* כפיית צבע טקסט */
+    border: 1px solid #e9ecef; /* הוספת גבול עדין */
     border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    max-width: 500px; /* Changed from 600px to better fit lists */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1); /* שיפור הצל */
+    max-width: 500px;
     width: 90%;
     max-height: 85vh;
-    display: flex; /* Use flexbox for robust vertical layout */
-    flex-direction: column; /* Stack header/body/footer vertically */
+    display: flex;
+    flex-direction: column;
     position: relative;
+    /* הוספת מאפיינים לביטול שקיפות */
+    opacity: 1 !important;
+    visibility: visible !important;
+    /* הוספת פדינג פנימי גנרי */
+    padding: 3rem !important;
+    /* הוספת overflow נסתר למניעת יציאת תוכן */
+    overflow: hidden;
+}
+
+/* וידוא שהתוכן הפנימי יהיה לבן */
+.modal-content * {
+    background-color: inherit;
+}
+
+.modal-header {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e9ecef;
+    padding: 2rem 3rem;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-body {
+    background-color: #ffffff !important;
+    padding: 3rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    background-color: #ffffff !important;
+    border-top: 1px solid #e9ecef;
+    padding: 2rem 3rem;
+    border-radius: 0 0 12px 12px;
 }
 
 .modal-close-btn {
     position: absolute;
-    top: 1rem;
-    right: 1rem;
+    top: 2rem;
+    right: 2rem;
     background: none;
     border: none;
     font-size: 1.5rem;
@@ -169,13 +202,32 @@
     justify-content: center;
     border-radius: 50%;
     transition: all 0.2s ease;
+    z-index: 10;
 }
 
 .modal-close-btn:hover {
-    background-color: #f8f9fa;
+    background-color: #f8f9fa !important;
     color: #495057;
 }
 
+/* הוספת מדיה קווריז לגדלי מסך קטנים */
+/* הוספת הגנות נוספות */
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content.show {
+    opacity: 1 !important;
+    transform: scale(1);
+    visibility: visible !important;
+}
+
+/* הוספת scroll פנימי לתוכן ארוך */
+.modal-content form {
+    overflow-y: auto;
+    max-height: calc(85vh - 6rem);
+}
 /* ==========================================================================
    Post Card Styles (Corrected & Final)
    ========================================================================== */
