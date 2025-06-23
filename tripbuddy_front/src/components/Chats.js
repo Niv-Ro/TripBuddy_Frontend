@@ -14,73 +14,55 @@ function Chats() {
     const [activeChat, setActiveChat] = useState(null);
     const [view, setView] = useState('list');
     const [isComponentLoading, setIsComponentLoading] = useState(true);
-    const socketRef = useRef();
+    const socketRef = useRef(null);
 
-    // Move fetchChats outside useEffect so it can be reused
     const fetchChats = useCallback(() => {
         if (mongoUser) {
             setIsComponentLoading(true);
+            // ✅ התיקון: הוספת הכתובת המלאה של השרת
             axios.get(`http://localhost:5000/api/chats/my-chats/${mongoUser._id}`)
                 .then(res => {
-                    setConversations(res.data);
+                    const sortedChats = res.data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+                    setConversations(sortedChats);
                 })
                 .catch(err => console.error("Failed to fetch conversations", err))
                 .finally(() => setIsComponentLoading(false));
-        } else {
-            setIsComponentLoading(false);
         }
     }, [mongoUser]);
 
-    // Initial fetch of chats
     useEffect(() => {
-        if (!loading) {
+        if (!loading && mongoUser) {
             fetchChats();
         }
-    }, [loading, fetchChats]);
+    }, [loading, mongoUser, fetchChats]);
 
-    // Socket setup
     useEffect(() => {
         if (!mongoUser) return;
-
-        socketRef.current = io(ENDPOINT);
+        if (!socketRef.current) {
+            socketRef.current = io(ENDPOINT);
+            socketRef.current.emit('setup', mongoUser._id);
+        }
         const socket = socketRef.current;
-
-        socket.emit('setup', mongoUser._id);
-
-        const handleNewMessage = (newMessageReceived) => {
-            // Check if the chat of the new message already exists in the list
-            const chatExists = conversations.some(c => c._id === newMessageReceived.chat._id);
-            if (!chatExists) {
-                // If not, this is a new chat! Reload the list
-                fetchChats();
-            } else {
-                // If the chat exists, update its latest message and sort order
-                setConversations(prev => {
-                    const updatedConversations = prev.map(convo => {
-                        if (convo._id === newMessageReceived.chat._id) {
-                            return {
-                                ...convo,
-                                latestMessage: newMessageReceived,
-                                updatedAt: newMessageReceived.updatedAt
-                            };
-                        }
-                        return convo;
-                    });
-                    // Sort again so the updated chat jumps to the top
-                    return updatedConversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-                });
-            }
+        const handleUpdateList = (newMessageReceived) => {
+            setConversations(prev => {
+                const chatExists = prev.some(c => c._id === newMessageReceived.chat._id);
+                if (!chatExists) {
+                    fetchChats();
+                    return prev;
+                }
+                const updatedConversations = prev.map(convo =>
+                    convo._id === newMessageReceived.chat._id
+                        ? { ...convo, latestMessage: newMessageReceived, updatedAt: newMessageReceived.updatedAt }
+                        : convo
+                );
+                return updatedConversations.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            });
         };
-
-        socket.on('message received', handleNewMessage);
-
+        socket.on('update conversation list', handleUpdateList);
         return () => {
-            if (socketRef.current) {
-                socketRef.current.off('message received', handleNewMessage);
-                socketRef.current.disconnect();
-            }
+            socket.off('update conversation list', handleUpdateList);
         };
-    }, [mongoUser, fetchChats]); // Remove conversations from dependencies to avoid infinite loops
+    }, [mongoUser, fetchChats]);
 
     const getChatName = (chat) => {
         if (!mongoUser || !chat.members) return "Chat";
@@ -102,40 +84,45 @@ function Chats() {
             return <NewChat onChatCreated={handleChatCreated} />;
         }
         if (view === 'chat' && activeChat) {
-            return <ChatWindow chat={activeChat} onBack={() => setActiveChat(null)} />;
+            return <ChatWindow
+                chat={activeChat}
+                socket={socketRef.current}
+                onBack={() => { setView('list'); setActiveChat(null); }}
+            />;
         }
-        return <div className="p-5 text-center text-muted">Select a conversation to start chatting.</div>;
+        return <div className="p-5 text-center text-muted d-flex align-items-center justify-content-center h-100">Select a conversation or start a new one.</div>;
     };
 
     if (loading) return <p className="p-5 text-center">Authenticating...</p>;
 
     return (
-        <div className="d-flex" style={{ height: 'calc(100vh - 60px)' }}>
-            <div className="border-end d-flex flex-column" style={{ width: '350px' }}>
+        <div className="d-flex" style={{ height: '100vh' }}>
+            <div className="border-end d-flex flex-column bg-white" style={{ width: '350px', flexShrink: 0 }}>
                 <div className="p-3 border-bottom d-flex justify-content-between align-items-center">
                     <h4 className="mb-0">Chats</h4>
                     <button className="btn btn-primary btn-sm" onClick={() => { setView('new'); setActiveChat(null); }}>+ New Chat</button>
                 </div>
                 <div className="flex-grow-1 overflow-auto">
-                    {isComponentLoading ? <p className="p-3">Loading chats...</p> : (
+                    {isComponentLoading ? <p className="p-3 text-muted">Loading chats...</p> : (
                         <div className="list-group list-group-flush">
                             {conversations.map(chat => (
                                 <button key={chat._id} type="button"
-                                        className={`list-group-item list-group-item-action text-start ${activeChat?._id === chat._id ? 'active' : ''}`}
+                                        className={`list-group-item list-group-item-action text-start p-3 ${activeChat?._id === chat._id ? 'active' : ''}`}
                                         onClick={() => { setActiveChat(chat); setView('chat'); }}>
-                                    <div className="d-flex w-100 justify-content-between">
-                                        <h6 className="mb-1">{getChatName(chat)}</h6>
-                                    </div>
-                                    <small className="text-muted">{chat.latestMessage?.content || 'No messages yet'}</small>
+                                    <h6 className="mb-1 text-truncate">{getChatName(chat)}</h6>
+                                    {chat.latestMessage ?
+                                        <small className="text-muted text-truncate d-block">{chat.latestMessage.content}</small>
+                                        : <small className="text-muted fst-italic">No messages yet</small>
+                                    }
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
-            <div className="flex-grow-1 bg-light">
+            <main className="flex-grow-1 bg-light">
                 {renderMainContent()}
-            </div>
+            </main>
         </div>
     );
 }
