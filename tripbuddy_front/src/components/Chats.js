@@ -14,7 +14,7 @@ function Chats() {
     const [activeChat, setActiveChat] = useState(null);
     const [view, setView] = useState('list');
     const [isComponentLoading, setIsComponentLoading] = useState(true);
-    const [isDeleting, setIsDeleting] = useState(null); // Track which chat is being deleted
+    const [isDeleting, setIsDeleting] = useState(null);
     const socketRef = useRef(null);
 
     const fetchChats = useCallback(() => {
@@ -81,42 +81,32 @@ function Chats() {
 
     const handleDeleteChat = async (chatId, chatName) => {
         if (!mongoUser) return;
-
-        const confirmMessage = `Are you sure you want to delete "${chatName}"?\n\nThis will:\n• Delete the chat permanently\n• Delete all messages in this chat\n\nThis action cannot be undone!`;
-
+        const confirmMessage = `Are you sure you want to delete your chat with "${chatName}"? This action cannot be undone.`;
         if (!window.confirm(confirmMessage)) return;
 
         setIsDeleting(chatId);
-
         try {
             await axios.delete(`http://localhost:5000/api/chats/${chatId}`, {
                 data: { userId: mongoUser._id }
             });
-
-            // Remove the chat from the conversations list
             setConversations(prev => prev.filter(chat => chat._id !== chatId));
-
-            // If this was the active chat, go back to list view
             if (activeChat?._id === chatId) {
                 setActiveChat(null);
                 setView('list');
             }
-
             alert('Chat deleted successfully.');
         } catch (error) {
             console.error('Error deleting chat:', error);
-            alert(error.response?.data?.message || 'Failed to delete chat. Please try again.');
+            alert(error.response?.data?.message || 'Failed to delete chat.');
         } finally {
             setIsDeleting(null);
         }
     };
 
+    // ✅ התיקון המרכזי כאן
     const canDeleteChat = (chat) => {
-        if (!mongoUser) return false;
-        // For group chats, only admin can delete
-        if (chat.isGroupChat && chat.admin?._id !== mongoUser._id) return false;
-        // For private chats, any member can delete
-        return true;
+        // אפשר למחוק שיחה רק אם היא לא שיחה קבוצתית
+        return !chat.isGroupChat;
     };
 
     const renderMainContent = () => {
@@ -152,7 +142,10 @@ function Chats() {
                                                 className="btn btn-link text-start p-3 flex-grow-1 text-decoration-none border-0"
                                                 style={{ color: 'inherit' }}
                                                 onClick={() => { setActiveChat(chat); setView('chat'); }}>
-                                            <h6 className="mb-1 text-truncate">{getChatName(chat)}</h6>
+                                            <h6 className="mb-1 text-truncate">
+                                                {chat.isGroupChat && '👥 '}
+                                                {getChatName(chat)}
+                                            </h6>
                                             {chat.latestMessage ?
                                                 <small className="text-muted text-truncate d-block">{chat.latestMessage.content}</small>
                                                 : <small className="text-muted fst-italic">No messages yet</small>
