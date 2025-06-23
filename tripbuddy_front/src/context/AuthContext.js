@@ -11,6 +11,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [mongoUser, setMongoUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [authInitialized, setAuthInitialized] = useState(false);
 
     const fetchUserFromDB = useCallback(async (email, retryCount = 0) => {
         try {
@@ -18,59 +19,89 @@ export const AuthProvider = ({ children }) => {
             const freshMongoUser = res.data;
             setMongoUser(freshMongoUser);
             console.log('✅ Successfully fetched user from DB:', email);
+            return freshMongoUser;
         } catch (error) {
             if (error.response?.status === 404 && retryCount < 3) {
-                // נסה שוב אחרי delay מצטבר
+                // Retry with increasing delay
                 const delay = (retryCount + 1) * 500; // 500ms, 1s, 1.5s
                 console.log(`User not found, retry ${retryCount + 1}/3 in ${delay}ms`);
 
-                setTimeout(() => {
-                    fetchUserFromDB(email, retryCount + 1);
-                }, delay);
-                return;
+                return new Promise((resolve) => {
+                    setTimeout(async () => {
+                        const result = await fetchUserFromDB(email, retryCount + 1);
+                        resolve(result);
+                    }, delay);
+                });
             }
 
             if (error.response?.status === 404) {
                 console.log("User not found in DB after 3 retries - this might be normal for new registrations");
-                return;
+                return null;
             }
 
             console.error("AuthContext: Failed to fetch user from DB.", error);
-            await firebaseSignOut(auth);
+            // Don't sign out on error - let the user stay authenticated
+            return null;
         }
     }, []);
 
     useEffect(() => {
+        let mounted = true;
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (!mounted) return;
+
             console.log('Firebase auth state changed:', firebaseUser?.email || 'No user');
 
             if (firebaseUser) {
                 setUser(firebaseUser);
 
-                // רק אם אין mongoUser, תבצע fetch
-                if (!mongoUser) {
+                // Always try to fetch MongoDB user when Firebase user exists
+                if (!mongoUser || mongoUser.email !== firebaseUser.email) {
                     console.log('Fetching MongoDB user for:', firebaseUser.email);
-                    await fetchUserFromDB(firebaseUser.email);
+                    const fetchedUser = await fetchUserFromDB(firebaseUser.email);
+                    if (!mounted) return;
+
+                    if (fetchedUser) {
+                        setMongoUser(fetchedUser);
+                    }
                 } else {
-                    console.log('MongoDB user already exists:', mongoUser.email);
+                    console.log('MongoDB user already loaded:', mongoUser.email);
                 }
             } else {
                 console.log('No Firebase user - clearing state');
                 setUser(null);
                 setMongoUser(null);
             }
-            setLoading(false);
+
+            if (mounted) {
+                setLoading(false);
+                setAuthInitialized(true);
+            }
         });
-        return () => unsubscribe();
-    }, [fetchUserFromDB]); // הסרתי mongoUser מה-dependencies למניעת loops
+
+        return () => {
+            mounted = false;
+            unsubscribe();
+        };
+    }, []); // Empty dependency array - only run once
 
     const logout = async () => {
-        await firebaseSignOut(auth);
+        try {
+            await firebaseSignOut(auth);
+            setUser(null);
+            setMongoUser(null);
+        } catch (error) {
+            console.error("Error signing out:", error);
+        }
     };
 
     const refetchMongoUser = useCallback(async () => {
         if (user?.email) {
-            await fetchUserFromDB(user.email);
+            const fetchedUser = await fetchUserFromDB(user.email);
+            if (fetchedUser) {
+                setMongoUser(fetchedUser);
+            }
         }
     }, [user, fetchUserFromDB]);
 
@@ -78,9 +109,10 @@ export const AuthProvider = ({ children }) => {
         user,
         mongoUser,
         loading,
+        authInitialized,
         logout,
         refetchMongoUser,
-        setMongoUser // חשיפת הפונקציה החשובה הזו
+        setMongoUser
     };
 
     return (

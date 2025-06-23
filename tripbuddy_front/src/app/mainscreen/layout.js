@@ -1,37 +1,42 @@
 "use client"
-import { useEffect, useState } from 'react';
-import { auth } from '@/services/fireBase';
-import { useRouter } from 'next/navigation'; // חשוב: לייבא מ-next/navigation
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProtectedLayout({ children }) {
     const router = useRouter();
-    const [isLoading, setIsLoading] = useState(true);
+    const { user, loading } = useAuth();
 
     useEffect(() => {
-        // onAuthStateChanged בודק את מצב המשתמש בזמן אמת וגם عند טעינת העמוד
-        const unsubscribe = auth.onAuthStateChanged(user => {
-            if (!user) {
-                // אם אין משתמש מחובר, העבר אותו לדף הבית
-                router.replace('/');
-            } else {
-                // אם יש משתמש, סיים את מצב הטעינה
-                setIsLoading(false);
-            }
-        });
+        // Don't do anything while loading
+        if (loading) return;
 
-        // נקה את המאזין כשהקומפוננטה יורדת מהעץ
-        return () => unsubscribe();
-    }, [router]);
+        // If not loading and no user, redirect
+        if (!loading && !user) {
+            console.log('No user found after loading, redirecting...');
+            router.push('/');
+        }
+    }, [user, loading, router]);
 
-    // בזמן הבדיקה, אפשר להציג הודעת טעינה
-    if (isLoading) {
+    // Show loading state
+    if (loading) {
         return (
-            <div className="d-flex justify-content-center align-items-center min-vh-100">
-                <p>Loading...</p>
+            <div className="min-vh-100 d-flex justify-content-center align-items-center">
+                <div className="text-center">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Loading...</p>
+                </div>
             </div>
         );
     }
 
-    // אם המשתמש מחובר, הצג את התוכן של העמוד
-    return children;
+    // Show nothing while redirecting
+    if (!user) {
+        return null;
+    }
+
+    // User is authenticated, show content
+    return <>{children}</>;
 }

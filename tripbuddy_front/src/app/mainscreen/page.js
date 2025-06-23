@@ -100,7 +100,7 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
 );
 
 export default function MainScreenPage() {
-    const {mongoUser} = useAuth();
+    const {mongoUser, loading} = useAuth();
     const [view, setView] = useState('feed');
     const [viewedUserId, setViewedUserId] = useState(null);
     const [viewedGroupId, setViewedGroupId] = useState(null);
@@ -109,7 +109,7 @@ export default function MainScreenPage() {
         if (mongoUser && !viewedUserId) {
             setViewedUserId(mongoUser._id);
         }
-    }, [mongoUser]);
+    }, [mongoUser, viewedUserId]);
 
     const navigateToProfile = (data) => {
         const idToView = (typeof data === 'object' && data !== null) ? data._id : data;
@@ -130,6 +130,48 @@ export default function MainScreenPage() {
         setViewedGroupId(groupId);
         setView('group-view');
     };
+
+
+    const DebugAuth = () => {
+        const { user, mongoUser, loading, authInitialized } = useAuth();
+
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 10,
+                right: 10,
+                background: 'rgba(0,0,0,0.8)',
+                color: 'white',
+                padding: '10px',
+                borderRadius: '5px',
+                fontSize: '12px',
+                zIndex: 9999,
+                maxWidth: '300px'
+            }}>
+                <div>Auth Debug:</div>
+                <div>Loading: {loading ? 'true' : 'false'}</div>
+                <div>Initialized: {authInitialized ? 'true' : 'false'}</div>
+                <div>Firebase User: {user ? user.email : 'null'}</div>
+                <div>Mongo User: {mongoUser ? mongoUser.email : 'null'}</div>
+                <div>Time: {new Date().toLocaleTimeString()}</div>
+            </div>
+        );
+    };
+
+
+    // Show loading while auth is being determined
+    if (loading) {
+        return (
+            <div className="d-flex justify-content-center align-items-center min-vh-100">
+                <div className="text-center">
+                    <div className="spinner-border text-primary mb-3" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        );
+    }
 
     let Content;
     switch (view) {
