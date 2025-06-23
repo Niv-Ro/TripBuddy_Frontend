@@ -1,20 +1,27 @@
 // src/components/GroupView.js
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import PostCard from './PostCard';
 import UserSearch from './UserSearch';
+import CreatePost from './CreatePost';
 
 export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const { mongoUser } = useAuth();
+
+    // State for data
     const [group, setGroup] = useState(null);
     const [posts, setPosts] = useState([]);
+
+    // State for UI control
     const [isLoading, setIsLoading] = useState(true);
     const [isInviting, setIsInviting] = useState(false);
-    const [inviteMessage, setInviteMessage] = useState('');
+    const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
+    const [message, setMessage] = useState('');
 
-    const fetchGroupData = () => {
+    const fetchGroupData = useCallback(() => {
+        if (!groupId) return;
         const fetchGroupDetails = axios.get(`http://localhost:5000/api/groups/${groupId}`);
         const fetchGroupPosts = axios.get(`http://localhost:5000/api/posts/group/${groupId}`);
 
@@ -25,28 +32,34 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             })
             .catch(err => console.error("Failed to load group data", err))
             .finally(() => setIsLoading(false));
-    };
-
-    useEffect(() => {
-        if (groupId) {
-            setIsLoading(true);
-            fetchGroupData();
-        }
     }, [groupId]);
 
+    useEffect(() => {
+        fetchGroupData();
+    }, [fetchGroupData]);
+
+    const showMessage = (msg) => {
+        setMessage(msg);
+        setTimeout(() => setMessage(''), 4000); // Clear message after 4 seconds
+    };
+
+    // --- Action Handlers ---
+
+    const handlePostCreated = () => {
+        setIsCreatePostOpen(false);
+        fetchGroupData(); // Refresh posts and group data
+    };
+
     const handleInviteUser = async (userToInvite) => {
-        setInviteMessage('');
         try {
             await axios.post(`http://localhost:5000/api/groups/${groupId}/invite`, {
                 adminId: mongoUser._id,
                 inviteeId: userToInvite._id
             });
-            setInviteMessage(`Invitation sent to ${userToInvite.fullName}.`);
+            showMessage(`Invitation sent to ${userToInvite.fullName}.`);
             setIsInviting(false);
         } catch (err) {
-            console.error("Failed to send invitation", err);
-            const errorMessage = err.response?.data?.message || "Failed to send invitation.";
-            setInviteMessage(errorMessage);
+            showMessage(err.response?.data?.message || "Failed to send invitation.");
         }
     };
 
@@ -59,25 +72,48 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                 });
                 fetchGroupData();
             } catch (err) {
-                console.error("Failed to remove member", err);
                 alert("Failed to remove member.");
             }
         }
     };
 
-    if (isLoading) return <p className="text-center p-5">Loading group...</p>;
-    if (!group) return <p className="text-center p-5">Group not found or you do not have access.</p>;
+    const handleRequestToJoin = async () => {
+        try {
+            await axios.post(`http://localhost:5000/api/groups/${groupId}/request-join`, { userId: mongoUser._id });
+            showMessage("Your request to join has been sent.");
+            fetchGroupData(); // Refresh to show pending status
+        } catch (err) {
+            showMessage(err.response?.data?.message || "Failed to send request.");
+        }
+    };
 
+    const handleRespondToRequest = async (requesterId, response) => {
+        try {
+            await axios.post(`http://localhost:5000/api/groups/${groupId}/respond-request`, {
+                adminId: mongoUser._id,
+                requesterId,
+                response
+            });
+            fetchGroupData();
+        } catch (err) {
+            alert('Failed to respond to request.');
+        }
+    };
+
+    // --- Derived State ---
+    const isMember = group?.members.some(m => m.user?._id === mongoUser?._id && m.status === 'approved');
+    const hasPendingStatus = group?.members.some(m => m.user?._id === mongoUser?._id && m.status !== 'approved');
+    const isAdmin = group?.admin && (group.admin._id || group.admin).toString() === mongoUser?._id;
     const approvedMembers = group?.members.filter(m => m.status === 'approved') || [];
-    const isMember = approvedMembers.some(member => member.user._id === mongoUser?._id);
+    const pendingRequests = group?.members.filter(m => m.status === 'pending_approval') || [];
 
-    // 🔥 שינוי 1: בדיקה משופרת שמוודאת שהכפתור תמיד יופיע למנהל הקבוצה
-    const isAdmin = group.admin && (group.admin._id || group.admin).toString() === mongoUser?._id;
 
-    const memberIds = group.members.map(m => m.user._id);
+    if (isLoading) return <p className="text-center p-5">Loading group...</p>;
+    if (!group) return <p className="text-center p-5">Group not found.</p>;
 
     return (
         <div>
+            {/* Top Navigation */}
             <nav className="bg-light border-bottom p-3 d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center">
                     <button className="btn btn-secondary me-3" onClick={onBack}>← Back</button>
@@ -86,48 +122,48 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                         <p className="mb-0 text-muted">{group.description}</p>
                     </div>
                 </div>
-                {/* הכפתור משתמש בבדיקת isAdmin המשופרת */}
-                {isAdmin && <button className="btn btn-outline-primary" onClick={() => setIsInviting(!isInviting)}>Invite Member</button>}
+                {isAdmin && <button className="btn btn-outline-primary" onClick={() => setIsInviting(!isInviting)}>Invite</button>}
             </nav>
 
-            {inviteMessage && <div className="alert alert-info m-3" role="alert">{inviteMessage}</div>}
+            {message && <div className="alert alert-info m-3">{message}</div>}
 
+            {/* Main Content */}
             {isMember ? (
                 <div className="container py-4">
                     <div className="row">
                         <div className="col-md-8">
-                            <h4>Group Feed</h4>
+                            <div className="d-flex justify-content-between align-items-center mb-3">
+                                <h4 className="mb-0">Group Feed</h4>
+                                <button className="btn btn-success" onClick={() => setIsCreatePostOpen(true)}>+ New Post</button>
+                            </div>
                             <hr/>
-                            {posts.length > 0 ? (
-                                posts.map(post => <PostCard key={post._id} post={post} onNavigateToProfile={onNavigateToProfile} />)
-                            ) : (
-                                <p>No posts in this group yet.</p>
-                            )}
+                            {posts.length > 0 ? posts.map(post => <PostCard key={post._id} post={post} onNavigateToProfile={onNavigateToProfile} />) : <p>No posts in this group yet.</p>}
                         </div>
-
-                        {/* 🔥 שינוי 2: רכיב החיפוש עבר לכאן */}
                         <div className="col-md-4">
                             <div className="card">
-                                <div className="card-header d-flex justify-content-between align-items-center">
-                                    <span>{approvedMembers.length} Members</span>
-                                </div>
-
-                                {/* חיפוש המשתמשים יופיע כאן כאשר isInviting=true */}
                                 {isAdmin && isInviting && (
-                                    <div className="p-2 border-bottom">
-                                        <UserSearch
-                                            existingMemberIds={memberIds}
-                                            onSelectUser={handleInviteUser}
-                                            onCancel={() => setIsInviting(false)}
-                                        />
+                                    <div className="p-2 border-bottom"><UserSearch existingMemberIds={group.members.map(m => m.user?._id)} onSelectUser={handleInviteUser} onCancel={() => setIsInviting(false)} /></div>
+                                )}
+                                {isAdmin && pendingRequests.length > 0 && (
+                                    <div className="p-3 border-bottom">
+                                        <h6 className="card-title">Pending Requests ({pendingRequests.length})</h6>
+                                        {pendingRequests.map(({ user }) => (
+                                            <div key={user._id} className="d-flex justify-content-between align-items-center mb-2">
+                                                <span>{user.fullName}</span>
+                                                <div>
+                                                    <button className="btn btn-sm btn-success me-1" onClick={() => handleRespondToRequest(user._id, 'approve')}>Approve</button>
+                                                    <button className="btn btn-sm btn-danger" onClick={() => handleRespondToRequest(user._id, 'decline')}>Decline</button>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
-
+                                <div className="card-header">{approvedMembers.length} Members</div>
                                 <ul className="list-group list-group-flush">
                                     {approvedMembers.map(({ user }) => (
-                                        <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
-                                            {user.fullName}
-                                            {isAdmin && user._id !== (group.admin._id || group.admin).toString() && (
+                                        <li key={user?._id} className="list-group-item d-flex justify-content-between align-items-center">
+                                            {user?.fullName || 'User not found'}
+                                            {isAdmin && user?._id !== (group.admin._id || group.admin).toString() && (
                                                 <button className="btn btn-sm btn-outline-danger" onClick={() => handleRemoveMember(user._id)}>Remove</button>
                                             )}
                                         </li>
@@ -140,8 +176,24 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             ) : (
                 <div className="text-center p-5">
                     <h4>This is a private group.</h4>
-                    <p>Join the group to see posts and discussions.</p>
-                    <button className="btn btn-primary">Request to Join</button>
+                    {hasPendingStatus ? (
+                        <p className="text-success">Your membership request is pending.</p>
+                    ) : (
+                        <>
+                            <p>Join the group to see posts and discussions.</p>
+                            <button className="btn btn-primary" onClick={handleRequestToJoin}>Request to Join</button>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* Modal for Creating a New Post */}
+            {isCreatePostOpen && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <button className="modal-close-btn" onClick={() => setIsCreatePostOpen(false)}>&times;</button>
+                        <CreatePost onPostCreated={handlePostCreated} groupId={groupId} />
+                    </div>
                 </div>
             )}
         </div>
