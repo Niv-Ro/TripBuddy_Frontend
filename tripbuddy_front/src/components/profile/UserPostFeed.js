@@ -13,7 +13,7 @@ export default function UserPostFeed({
                                      }) {
     return (
         <div className="p-4">
-            <h3 className="mb-3">Posts by {profileName}</h3>
+            <h3 className="mb-3">Public posts by {profileName}</h3>
             {/* Maps over the posts array and renders a PostCard for each post. */}
             {posts.map(post => (
                 <PostCard

@@ -205,7 +205,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             <div className="col-12 mb-4">
                 <div className="card">
                     <div className="card-header bg-primary text-white">
-                        <h6 className="mb-0">📊 Posts Over Time (Non-Group Posts)</h6>
+                        <h6 className="mb-0">📊 Posts Over Time</h6>
                     </div>
                     <div className="card-body d-flex justify-content-center">
                         {/* This div is the container that the ref is attached to. D3 will draw the chart inside it. */}
@@ -217,7 +217,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             <div className="col-12 mb-4">
                 <div className="card">
                     <div className="card-header bg-success text-white">
-                        <h6 className="mb-0">💬 Comments Over Time (All Posts)</h6>
+                        <h6 className="mb-0">💬 Comments Over Time </h6>
                     </div>
                     <div className="card-body d-flex justify-content-center">
                         <div ref={commentsChartRef}></div>
@@ -237,7 +237,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
                                 <h2 className="text-primary mb-1">
                                     {statsData.posts ? statsData.posts.reduce((sum, item) => sum + item.count, 0) : 0}
                                 </h2>
-                                <small className="text-muted">Non-group posts only</small>
+
                             </div>
                         </div>
                     </div>
@@ -251,7 +251,6 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
                                 <h2 className="text-success mb-1">
                                     {statsData.comments ? statsData.comments.reduce((sum, item) => sum + item.count, 0) : 0}
                                 </h2>
-                                <small className="text-muted">All posts</small>
                             </div>
                         </div>
                     </div>

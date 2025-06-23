@@ -18,7 +18,7 @@ export default function ProfileHeader({profileData,  //Contains all user data fr
             <div className="d-flex align-items-start w-100 position-relative">
                 {/* Profile image container */}
                 <div style={{ width: 200, height: 200, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
-                    <img src={profileData.profileImageUrl || 'https://i.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
+                    <img src={profileData.profileImageUrl || 'https://pic.onlinewebfonts.com/thumbnails/icons_529971.svg'} alt="Profile" style={{ width: '100%', height: '100%', objectFit: "cover" }} />
                 </div>
                 <div className="ms-4 flex-grow-1">
                     <div className="d-flex align-items-center mb-2" style={{gap: 16}}>

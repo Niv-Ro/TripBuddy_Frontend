@@ -22,9 +22,8 @@ const StatsModal = ({ isOpen, onClose, userId }) => {
             const allPostsForCommentsResponse = await axios.get(`http://localhost:5000/api/posts/all`);
             const allPosts = allPostsForCommentsResponse.data;
 
-            // Process posts data (only posts with group: null)
-            const postsWithNullGroup = allUserPosts.filter(post => post.group === null);
-            const postsOverTime = processPostsOverTime(postsWithNullGroup);
+            // Process posts data
+            const postsOverTime = processPostsOverTime(allUserPosts);
 
             // Process comments data
             const userComments = extractUserComments(allPosts, userId);

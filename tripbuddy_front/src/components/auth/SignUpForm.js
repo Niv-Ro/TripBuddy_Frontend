@@ -4,10 +4,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../../hooks/useCountries.js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFileProcessor } from '@/hooks/useFileProcessor'; // ✅ שימוש ב-Hook
+import { useFileProcessor } from '@/hooks/useFileProcessor';
 
-const SignUpForm = ({ onSubmit, isSubmitting }) => { // הוספנו isSubmitting
-    const router = useRouter();
+const SignUpForm = ({ onSubmit, isSubmitting }) => {
     const countries = useCountries();
     const { processFiles, processedFiles, isProcessing } = useFileProcessor();
 
@@ -31,9 +30,8 @@ const SignUpForm = ({ onSubmit, isSubmitting }) => { // הוספנו isSubmittin
 
     const handleSubmit = async e => {
         e.preventDefault();
-        // השתמש בקובץ הדחוס מה-Hook אם הוא קיים
         const profileImage = processedFiles.length > 0 ? processedFiles[0] : null;
-        await onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
+        await onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage }); //calls for register_handle
     };
 
     return (

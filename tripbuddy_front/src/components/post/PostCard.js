@@ -7,6 +7,14 @@ import EditPostModal from './EditPostModal';
 import EditCommentModal from './EditCommentModal';
 import useCountries from '@/hooks/useCountries';
 
+
+// A helper function to detect Right-to-Left (RTL) characters (like Hebrew) for nicer look
+const isRTL = (str) => {
+    // This regular expression checks for characters in the Hebrew or Arabic Unicode range.
+    const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF]/;
+    return rtlRegex.test(str);
+};
+
 // The main component to display a single post. It receives post data and handler functions as props.
 export default function PostCard({ post, onNavigateToProfile, currentUserMongoId, onUpdate, onDelete }) {
     const { user, mongoUser } = useAuth();
@@ -26,11 +34,13 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
     const [commentsVisible, setCommentsVisible] = useState(false);
 
     // Computed variables for cleaner conditional rendering in JSX.
-    const isOwner = user && post.author.firebaseUid && user.uid === post.author.firebaseUid;
+    const isOwner = mongoUser?._id === post.author._id;
     const isLikedByCurrentUser = currentUserMongoId ? likes.includes(currentUserMongoId) : false;
     const hasMultipleMedia = post.media && post.media.length > 1;
     const currentMedia = post.media?.[currentMediaIndex];
     const isVideo = currentMedia?.type.startsWith('video/');
+
+    const isTextRTL = isRTL(post.text);
 
     // This effect synchronizes the local state with the parent's props if the post data is updated.
     useEffect(() => {
@@ -122,6 +132,7 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
         setCommentsVisible(prev => !prev);
     };
 
+
     return (
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
@@ -158,7 +169,11 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
                 )}
 
                 <div className="card-body">
-                    <p className="card-text">{post.text}</p>
+                    <p className="card-text"
+                       style={{
+                           direction: isTextRTL ? 'rtl' : 'ltr',
+                           textAlign: isTextRTL ? 'right' : 'left'
+                       }}>{post.text}</p>
                     {taggedCountryObjects && taggedCountryObjects.length > 0 && (
                         <div className="mt-3">
                             <div className="d-flex flex-wrap gap-2">{taggedCountryObjects.map(country => (
@@ -215,7 +230,7 @@ export default function PostCard({ post, onNavigateToProfile, currentUserMongoId
                                                     <strong>{comment.author.fullName}</strong>
                                                     <p className="mb-0 small">{comment.text}</p>
                                                 </div>
-                                                {mongoUser?._id === comment.author._id && (
+                                                {isOwner && (
                                                     <div className="dropdown">
                                                         <button className="btn btn-light btn-sm py-0 px-2" type="button"
                                                                 data-bs-toggle="dropdown">⋮

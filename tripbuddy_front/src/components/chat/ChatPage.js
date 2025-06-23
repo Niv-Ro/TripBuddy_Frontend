@@ -158,7 +158,6 @@ export default function ChatPage() {
     };
 
     // When user selects a chat from browse/search
-
     const handleBrowseChatSelect = (selectedChat) => {
         const existingChat = conversations.find(c => c._id === selectedChat._id);
         // If chat already exists in list, just select it

@@ -96,8 +96,6 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [], title
         setError('');
         try {
             const res = await axios.get('http://localhost:5000/api/users/search', { params: filters });
-
-            // ✅ התיקון: סינון המשתמש הנוכחי ומשתמשים קיימים מהתוצאות
             const filteredResults = res.data.filter(user =>
                 user._id !== mongoUser?._id && !existingMemberIds.includes(user._id)
             );
@@ -108,17 +106,6 @@ export default function UserSearch({ onUserSelect, existingMemberIds = [], title
             setError('Failed to find users. Please try again.');
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const handleFollowToggleInSearch = async (userIdToFollow) => {
-        if (!mongoUser) return;
-        try {
-            await axios.post(`http://localhost:5000/api/users/${userIdToFollow}/follow`, { loggedInUserId: mongoUser._id });
-            await refetchMongoUser(); // רענן את המידע הגלובלי כדי לעדכן את כפתור העקוב
-        } catch (error) {
-            console.error("Failed to toggle follow in search", error);
-            alert("Could not perform action.");
         }
     };
 

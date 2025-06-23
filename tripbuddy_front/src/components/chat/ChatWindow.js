@@ -59,7 +59,11 @@ function EditMessageModal({ message, onSave, onCancel }) {
     );
 }
 
-function ChatWindow({ chat, socket, onBack, onChatUpdate }) {
+function ChatWindow({ chat, //Chat to display
+                        socket, // Current Socket.io instance, real-time connection to DB
+                        onBack,
+                        onChatUpdate // Function to update chat on parent
+}) {
     const { mongoUser } = useAuth();
     const [messages, setMessages] = useState([]); // all message array
     const [newMessage, setNewMessage] = useState(""); // new message currently typing
@@ -124,6 +128,7 @@ function ChatWindow({ chat, socket, onBack, onChatUpdate }) {
         e.preventDefault();
         //Check message isn't empty and user/socket exist
         if (newMessage.trim() === "" || !mongoUser || !socket) return;
+        // Creates a temporary message before DB save to make the chat more real-time. We will present it immediately, and replace later
         const tempId = Date.now().toString();
         const optimisticMessage = { _id: tempId, sender: { _id: mongoUser._id, fullName: mongoUser.fullName }, content: newMessage, chat: { _id: chat._id, members: chat.members }};
         //Show message immediately with temporary ID
@@ -133,7 +138,7 @@ function ChatWindow({ chat, socket, onBack, onChatUpdate }) {
         try {
             const { data: savedMessage } = await axios.post('http://localhost:5000/api/messages', { content: newMessage, chatId: chat._id, senderId: mongoUser._id });
             //Emit to other users via Socket.IO
-            socket.emit('new message', savedMessage);
+            socket.emit('new message', savedMessage); //savedMessage has full object of chat, including members to use in server
             //Replace temporary message with real one from server
             setMessages(prev => prev.map(msg => msg._id === tempId ? savedMessage : msg));
         } catch (error) {
@@ -592,8 +597,7 @@ function ChatWindow({ chat, socket, onBack, onChatUpdate }) {
                 <button className="btn btn-primary ms-2" type="submit" disabled={!newMessage.trim()}>Send</button>
             </form>
             {/*Edit Message Modal*/}
-            disables the Send button when there's no meaningful text to send, preventing users from sending empty or whitespace-only messages.
-            {/*disable - disables the Send button when there's no meaningful text to send, preventing users from sending empty or whitespace-only messages.*/}
+            {/*disables the Send button when there's no meaningful text to send, preventing users from sending empty or whitespace-only messages.*/}
             {editingMessage && <EditMessageModal message={editingMessage} onSave={handleUpdateMessage} onCancel={() => setEditingMessage(null)} />}
         </div>
     );

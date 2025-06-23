@@ -15,12 +15,12 @@ export async function handleRegister(formValues) {
         const firebaseUser = userCredential.user;
         console.log('Successfully created user in Firebase Auth with UID:', firebaseUser.uid);
 
-        let profileImageUrl = '';
+        let profileImageUrl = 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'; // Set's default url to generic picture
         if (profileImage) {
-            // const imageRef = ref(storage, `profileImages/${firebaseUser.uid}`);
             const imageRef = ref(storage, `profileImages/${fullName}_(${email})`);
             await uploadBytes(imageRef, profileImage);
             profileImageUrl = await getDownloadURL(imageRef);
+
         }
 
         const userDataForMongo = {
