@@ -7,12 +7,12 @@ import CreatePost from "@/components/post/CreatePost";
 import PostCard from "@/components/post/PostCard";
 
 export default function Feed({ onNavigateToProfile }) {
-    const [allPosts, setAllPosts] = useState([]);
+    const [allPosts, setAllPosts] = useState([]); // Array to hold posts belong to user's feed from server
     const [isLoading, setIsLoading] = useState(true);
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false); //Flag to determine if a new post modal is open
 
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
+    const [page, setPage] = useState(1); // To prevent a mass loading of posts, we will load posts in pages. asking just the first page as a start
+    const [hasMore, setHasMore] = useState(true); // If user has more posts belongs to it's feed but not all loaded
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -35,8 +35,10 @@ export default function Feed({ onNavigateToProfile }) {
             params: { page: pageToFetch, limit: 10 }
         })
             .then(res => {
+                // if not the first page, add post for existing array.
+                // if it's first page then override last array
                 setAllPosts(prev => pageToFetch === 1 ? res.data.posts : [...prev, ...res.data.posts]);
-                setHasMore(res.data.hasMore);
+                setHasMore(res.data.hasMore); // set response from server if feed has more pages
             })
             .catch(err => {
                 console.error("Failed to fetch posts:", err);
@@ -59,16 +61,21 @@ export default function Feed({ onNavigateToProfile }) {
     }, [mongoUser?._id]);
 
 
-    //watches when the last post becomes visible and there are more posts, loads next page, this creates infinite scrolling.
-    const observer = useRef();
+    // holds the IntersectionObserver instance. Using useRef ensures the instance persists across re-renders without changing them.
+    const observer = useRef(); //We don't want the observer to change each render
     const lastPostRef = useCallback(node => {
+        // If we are already fetching more data, do nothing.
         if (isLoadingMore) return;
+        // Before creating a new observer, disconnect the previous one to prevent observing multiple elements.
         if (observer.current) observer.current.disconnect();
+        // isIntersecting is true when the element enters the viewport.
+        // hasMore ensures we only try to fetch if the server has more posts.
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
-                setPage(prevPage => prevPage + 1);
+            if (entries[0].isIntersecting && hasMore) { //entries[0] = last post in array
+                setPage(prevPage => prevPage + 1); // if there are more posts to show, increase page number by 1
             }
         });
+        // If the node exists, tell the observer to start watching it.
         if (node) observer.current.observe(node);
     }, [isLoadingMore, hasMore]);
 
@@ -90,7 +97,7 @@ export default function Feed({ onNavigateToProfile }) {
         fetchPosts(1);
     };
 
-    //Updates a specific post in the list.
+    //Updates a specific post in the list without re-rendering.
     const handleUpdatePost = (updatedPost) => {
         setAllPosts(prevPosts =>
             prevPosts.map(p => (p._id === updatedPost._id ? updatedPost : p))
@@ -125,7 +132,9 @@ export default function Feed({ onNavigateToProfile }) {
             });
     }, [allPosts, selectedCountry, searchTerm]);
 
-    //Gets countries from user's wishlist, these become options in the country filter dropdown
+    // Gets countries from user's wishlist, these become options in the country filter dropdown
+    // useMemo remembers posts array and prevents the call of the function every render.
+    // it executes only when dependencies change
     const filterOptions = useMemo(() => {
         if (!mongoUser || !allCountries.length) return [];
         return (mongoUser.wishlistCountries || []).map(code =>
@@ -167,6 +176,7 @@ export default function Feed({ onNavigateToProfile }) {
                 {isLoading ? (
                     <p className="text-center text-muted">Loading posts...</p>
                 ) : filteredPosts.length > 0 ? (
+                    //if there are posts than iterates over post and uses the PostCard component
                     filteredPosts.map((post, index) => {
                         const postCard = (
                             <PostCard
@@ -177,6 +187,8 @@ export default function Feed({ onNavigateToProfile }) {
                                 onNavigateToProfile={onNavigateToProfile}
                             />
                         );
+                        //if it is the last post in array, attach the reference to that post
+                        //helps us to know if user is looking at the last post in page
                         if (filteredPosts.length === index + 1) {
                             return <div ref={lastPostRef} key={post._id}>{postCard}</div>;
                         } else {

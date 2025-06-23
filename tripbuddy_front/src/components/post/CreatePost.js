@@ -19,6 +19,7 @@ export default function CreatePost({ onPostCreated, groupId = null }) {
     const [isSearching, setIsSearching] = useState(false);
     const [error, setError] = useState('');
 
+    // limit to 10 files and start process files via hook
     const handleFileChange = (e) => {
         const selectedFiles = e.target.files;
         if (selectedFiles.length > 10) {
@@ -41,8 +42,8 @@ export default function CreatePost({ onPostCreated, groupId = null }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!text.trim() || (processedFiles.length === 0 && !isProcessing)) {
-            setError('Please provide text and at least one file.');
+        if (!text.trim() && (processedFiles.length === 0 && !isProcessing)) { // Checks whether text or media in post
+            setError('Please provide text or at least one file.');
             return;
         }
         if (isProcessing) {
@@ -53,12 +54,12 @@ export default function CreatePost({ onPostCreated, groupId = null }) {
         setIsUploading(true);
         setError('');
 
+        // Save post media on firebase DB under unique name
         try {
             const userFolderName = `${mongoUser.fullName.replace(/\s+/g, '_')}_(${mongoUser.email})`;
-            const postCreationTimestamp = Date.now(); // חותמת זמן אחידה לכל הפוסט
+            const postCreationTimestamp = Date.now();
 
             const uploadPromises = processedFiles.map(file => {
-                // ✅ בניית הנתיב ההיררכי החדש
                 const filePath = `posts/${userFolderName}/${postCreationTimestamp}/${file.name}`;
 
                 const storageRef = ref(storage, filePath);
@@ -66,8 +67,11 @@ export default function CreatePost({ onPostCreated, groupId = null }) {
                     getDownloadURL(snapshot.ref).then(url => ({ url, type: file.type, path: filePath }))
                 );
             });
+            //Gets an array of { url, type, path } for each media file
+            //Passes only if all media uploaded successfully
             const mediaData = await Promise.all(uploadPromises);
 
+            // Assemble the final post object to be saved in MongoDB.
             const postData = {
                 authorId: mongoUser._id,
                 text,

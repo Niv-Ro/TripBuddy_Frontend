@@ -1,17 +1,13 @@
 /**
- * דוחס קובץ תמונה באמצעות Canvas.
+ * דוחס קובץ תמונה באמצעות Canvas בזיכרון.
  * @param {File} file - קובץ התמונה המקורי.
  * @param {object} options - אופציות דחיסה.
- * @param {number} options.maxWidth - רוחב מקסימלי.
- * @param {number} options.maxHeight - גובה מקסימלי.
- * @param {number} options.quality - איכות (0 עד 1).
  * @returns {Promise<File>} - מחזיר Promise שמכיל את הקובץ הדחוס.
  */
 export function compressImage(file, options = {}) {
     return new Promise((resolve, reject) => {
         const { maxWidth = 1200, maxHeight = 1200, quality = 0.8 } = options;
 
-        // if not an image (a video for example) upload without compression
         if (!file.type.startsWith('image/')) {
             resolve(file);
             return;

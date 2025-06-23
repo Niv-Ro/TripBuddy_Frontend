@@ -3,11 +3,10 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 export default function EditPostModal({ post, onUpdate, onCancel }) {
-    // --- State and Hooks ---
     const [text, setText] = useState(post.text);
     const [isSaving, setIsSaving] = useState(false);
 
-    // --  handlers --
+    //This function is being called after a click on save occurred, it uses the onUpdate function from PostCard and a server call for update
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSaving(true);

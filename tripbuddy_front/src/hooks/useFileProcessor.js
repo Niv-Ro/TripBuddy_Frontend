@@ -7,11 +7,11 @@ export function useFileProcessor() {
     const [progress, setProgress] = useState(0);
 
     const processFiles = useCallback(async (files, options = {}) => {
-        setIsProcessing(true); //flag to acknowledge start working
+        setIsProcessing(true);
         setProgress(0);
         setProcessedFiles([]);
 
-        const filesToProcess = Array.from(files); // convert to array if more than one file
+        const filesToProcess = Array.from(files);
         const allProcessed = [];
         let completedCount = 0;
 
@@ -27,9 +27,9 @@ export function useFileProcessor() {
             setProgress((completedCount / filesToProcess.length) * 100);
         }
 
-        setProcessedFiles(allProcessed); //set final array og files
-        setIsProcessing(false); //notify process is done
-        return allProcessed; // return the files for immediate use if needed
+        setProcessedFiles(allProcessed);
+        setIsProcessing(false);
+        return allProcessed; // Return the files for immediate use if needed
     }, []);
 
     const reset = useCallback(() => {

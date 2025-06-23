@@ -15,15 +15,10 @@ export default function MainScreenPage() {
     const [viewedUserId, setViewedUserId] = useState(null);
     const [viewedGroupId, setViewedGroupId] = useState(null);
 
-    const [view, setView] = useState(() => {
-        // reading from localStorage can occur only from client-side
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('currentView') || 'feed';
-        }
-        return 'feed'; // default page val
-    });
+    //Default page will set to feed page
+    const [view, setView] = useState('feed');
 
-    //Saves the current page, when user refreshes they stay on the same page
+    //Saves the current page, when user refreshes they stay on the same page, with the help of local storage
     useEffect(() => {
         localStorage.setItem('currentView', view);
     }, [view]);
@@ -35,7 +30,8 @@ export default function MainScreenPage() {
         }
     }, [mongoUser, viewedUserId]);
 
-    //Extracts the ID and switches to profile view
+    // Navigation handler function passed as a prop to child components.
+    // It changes the view to 'profile' and sets the ID of the user to display.
     const navigateToProfile = (data) => {
         const idToView = (typeof data === 'object' && data !== null) ? data._id : data;
         if (idToView) {
@@ -85,6 +81,7 @@ export default function MainScreenPage() {
             Content = <Chats />;
             break;
         case 'profile':
+            // whenever the viewedUserId changes, forcing it to re-mount and re-fetch data.
             Content = viewedUserId ? <ProfilePage key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
             break;
         case 'search':

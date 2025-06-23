@@ -8,6 +8,7 @@ const sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId, 
         <div>
             <h2 className="mb-1">Travel Buddy</h2>
             <div className="mt-3 d-flex flex-column align-items-center">
+                {/* Each button uses an onClick handler to call a function from the parent MainScreenPage, changing the view. */}
 
                 <button className="btn mb-2 text-start" onClick={() => setView('feed')}>
                     <div className="d-inline-flex flex-column align-items-center">
@@ -83,6 +84,7 @@ const sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId, 
             </div>
         </div>
         <div className="mt-auto">
+            {/* mt-auto pushes this div to the bottom of the container. */}
             <button className="btn btn-outline-danger w-100" onClick={onSignOut}>Sign Out</button>
         </div>
     </nav>
