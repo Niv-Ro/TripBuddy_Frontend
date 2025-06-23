@@ -1,29 +1,19 @@
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import {AuthProvider} from "@/context/AuthContext";
-import {Heebo} from "next/font/google"
+import {Heebo} from "next/font/google"  // get font from google
 
 const heebo = Heebo({
     subsets:["latin","hebrew"],
     weight: ["300", "400", "500", "700"]
 });
 
-const geistSans = Geist({
-    variable: "--font-geist-sans",
-    subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-    variable: "--font-geist-mono",
-    subsets: ["latin"],
-});
-
+//sets website title and description
 export const metadata = {
     title: "Travel Buddy",
     description: "Find your perfect travel companion",
 };
 
-export default function RootLayout({ children }) {
+export default function RootLayout({ children }) {  //children is the current page that next.js is rendering
     return (
         <html lang="en">
         <head>

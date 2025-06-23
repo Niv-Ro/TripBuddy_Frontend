@@ -1,7 +1,6 @@
 "use client"
 import React from 'react';
 import SignInForm from "@/components/auth/SignInForm";
-import {handleRegister} from "@/services/auth/register_handle";
 import {handleSignIn} from "@/services/auth/signIn_handle";
 
 const SignIn = () => (

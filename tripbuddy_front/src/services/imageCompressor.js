@@ -11,7 +11,7 @@ export function compressImage(file, options = {}) {
     return new Promise((resolve, reject) => {
         const { maxWidth = 1200, maxHeight = 1200, quality = 0.8 } = options;
 
-        // אם זה לא קובץ תמונה, החזר אותו כמו שהוא (למשל, וידאו)
+        // if not an image (a video for example) upload without compression
         if (!file.type.startsWith('image/')) {
             resolve(file);
             return;

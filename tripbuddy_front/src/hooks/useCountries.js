@@ -18,8 +18,8 @@ export default function useCountries() {
                         ccn3: c.ccn3,      // 3-digit numeric code (e.g., '376')
                         flag: c.flags.svg
                     }))
-                    .filter(c => c.code3 && c.ccn3) // Ensure the country has the necessary codes
-                    .sort((a, b) => a.name.localeCompare(b.name));
+                    .filter(c => c.code3 && c.ccn3) // filter out countries without important information,ensure the country has the necessary codes
+                    .sort((a, b) => a.name.localeCompare(b.name)); //sort alphabetically
 
                 setCountries(list);
             } catch (e) {

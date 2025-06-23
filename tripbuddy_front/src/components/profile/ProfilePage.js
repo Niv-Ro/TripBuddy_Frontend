@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries.js";
 import { storage } from "@/services/fireBase.js";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { useFileProcessor } from "@/hooks/useFileProcessor"; // ✅ 1. ייבוא ה-Hook
+import { useFileProcessor } from "@/hooks/useFileProcessor";
 
 import FollowListModal from './FollowListModal';
 import ProfileHeader from "./ProfileHeader";
@@ -14,9 +14,8 @@ import ProfileCountryLists from "./ProfileCountryLists";
 import UserPostFeed from "./UserPostFeed";
 import DangerZone from "./DangerZone";
 import EditProfileModal from "./EditProfileModal";
-import StatsModal from "./StatsModal"; // ADD THIS IMPORT
+import StatsModal from "./StatsModal";
 
-// --- Skeleton Component (for loading state) ---
 const ProfileSkeleton = () => (
     <div className="p-4 opacity-50" style={{ animation: 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}>
         <div className="navbar navbar-light border-bottom py-3 px-4">
@@ -32,11 +31,10 @@ const ProfileSkeleton = () => (
     </div>
 );
 
-// --- Main Page Component ---
 export default function ProfilePage({ userId, onNavigateToProfile }) {
-    const { mongoUser, refetchMongoUser, user } = useAuth(); // ✅ הוספת user מה-Context
+    const { mongoUser, refetchMongoUser, user } = useAuth();
     const allCountries = useCountries();
-    const { processFiles, processedFiles, isProcessing: isCompressing } = useFileProcessor(); // ✅ 2. שימוש ב-Hook
+    const { processFiles, processedFiles, isProcessing: isCompressing } = useFileProcessor();
 
     const [profileData, setProfileData] = useState(null);
     const [userPosts, setUserPosts] = useState([]);
@@ -58,8 +56,6 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
     const [bioInput, setBioInput] = useState('');
     const [profileImageInput, setProfileImageInput] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
-
-    // ADD ONLY THIS ONE STATE FOR STATS
     const [isShowingStats, setIsShowingStats] = useState(false);
 
     const fetchProfileData = useCallback(() => {
@@ -72,19 +68,19 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                 if (mongoUser && userData.followers) {
                     setIsFollowing(userData.followers.some(follower => follower._id === mongoUser._id));
                 }
-                if (isOwnProfile && allCountries.length > 0) {
-                    setVisitedCountries(userData.visitedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
-                    setWishlistCountries(userData.wishlistCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
-                }
-                return axios.get(`http://localhost:5000/api/posts/user/${userId}`);
+                // Moved this logic to a separate useEffect to prevent race conditions
             })
-            .then(postRes => { setUserPosts(postRes.data); })
             .catch(err => {
                 console.error("Failed to fetch profile data", err);
                 setProfileData({ error: true });
             })
             .finally(() => { setLoading(false); });
-    }, [userId, mongoUser?._id, allCountries.length, isOwnProfile]);
+
+        axios.get(`http://localhost:5000/api/posts/user/${userId}`)
+            .then(postRes => { setUserPosts(postRes.data); })
+            .catch(err => { console.error("Failed to fetch user posts", err); });
+
+    }, [userId, mongoUser]);
 
     useEffect(() => {
         setIsClient(true);
@@ -94,23 +90,31 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
     }, [userId, fetchProfileData]);
 
     useEffect(() => {
+        if (profileData && !profileData.error && allCountries.length > 0) {
+            setVisitedCountries(profileData.visitedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
+            setWishlistCountries(profileData.wishlistCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
+        }
+    }, [profileData, allCountries]);
+
+    useEffect(() => {
         if (!isOwnProfile || initialLoad.current || !mongoUser?.email) return;
         const visitedCca3 = visitedCountries.map(c => c.code3);
         const wishlistCca3 = wishlistCountries.map(c => c.code3);
+
+        // ✅ התיקון: הסרת הקריאה ל-refetchMongoUser שגרמה ל-Race Condition
         axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
             visited: visitedCca3,
             wishlist: wishlistCca3,
             visitedCcn3: visitedCountries.map(c => c.name),
             wishlistCcn3: wishlistCountries.map(c => c.name),
-        }).then(() => {
-            refetchMongoUser();
         }).catch(err => console.error("Failed to save lists", err));
-    }, [visitedCountries, wishlistCountries, isOwnProfile, mongoUser, refetchMongoUser]);
+
+    }, [visitedCountries, wishlistCountries, isOwnProfile, mongoUser]);
 
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
-        const list = addingToList === 'visited' ? visitedCountries : wishlistCountries;
         const setList = addingToList === 'visited' ? setVisitedCountries : setWishlistCountries;
+        const list = addingToList === 'visited' ? visitedCountries : wishlistCountries;
         if (!list.some(c => c.code === country.code)) {
             setList(prev => [...prev, country]);
         }
@@ -147,24 +151,18 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
         setIsSaving(true);
         try {
             let profileImageUrl = profileData.profileImageUrl;
-
             const imageToUpload = processedFiles.length > 0 ? processedFiles[0] : null;
-
             if (imageToUpload && user?.uid && mongoUser?.email) {
                 if (profileImageUrl && profileImageUrl.includes("firebase")) {
                     try { await deleteObject(ref(storage, profileImageUrl)); } catch (err) { console.warn("Old image deletion failed:", err.message); }
                 }
-
                 const userFullName = mongoUser.fullName.replace(/\s+/g, '_');
                 const userEmail = mongoUser.email;
                 const imageRef = ref(storage, `profile_images/${userFullName}_(${userEmail})`);
-
                 await uploadBytes(imageRef, imageToUpload);
                 profileImageUrl = await getDownloadURL(imageRef);
             }
-
             await axios.put(`http://localhost:5000/api/users/${userId}/bio`, { bio: bioInput, profileImageUrl });
-
             await refetchMongoUser();
             fetchProfileData();
             setIsEditingProfile(false);
@@ -200,7 +198,6 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
         const confirmationText = 'DELETE MY ACCOUNT';
         const promptMessage = `This action is irreversible. It will delete your profile, posts, comments, and all associated data permanently.\n\nPlease type "${confirmationText}" to confirm.`;
         const userInput = window.prompt(promptMessage);
-
         if (userInput === confirmationText) {
             try {
                 await axios.delete(`http://localhost:5000/api/users/${mongoUser._id}`, {
@@ -223,9 +220,7 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
         const birthDate = new Date(dateString);
         let age = today.getFullYear() - birthDate.getFullYear();
         const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) { age--; }
         return age;
     }
 
@@ -249,7 +244,6 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                 }}
                 onShowStats={() => setIsShowingStats(true)}
             />
-
             <ProfileCountryLists
                 isOwnProfile={isOwnProfile}
                 visitedCountries={visitedCountries}
@@ -261,7 +255,6 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                 onSelectCountry={handleAddCountry}
                 onCancelAdd={() => setAddingToList(null)}
             />
-
             <UserPostFeed
                 posts={userPosts}
                 profileName={profileData.fullName}
@@ -270,9 +263,7 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                 onDeletePost={handleDeletePost}
                 onNavigateToProfile={onNavigateToProfile}
             />
-
             {isOwnProfile && <DangerZone onDeleteProfile={handleDeleteProfile} />}
-
             <EditProfileModal
                 isOpen={isEditingProfile}
                 onClose={() => setIsEditingProfile(false)}
@@ -282,19 +273,17 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
                 onBioChange={(e) => setBioInput(e.target.value)}
                 onImageChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                        setProfileImageInput(e.target.files[0]); // Keep original file for the hook
+                        setProfileImageInput(e.target.files[0]);
                         processFiles([e.target.files[0]], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
                     }
                 }}
             />
-
             <StatsModal
                 isOpen={isShowingStats}
                 onClose={() => setIsShowingStats(false)}
                 userId={userId}
                 isOwnProfile={isOwnProfile}
             />
-
             <FollowListModal
                 isOpen={isFollowModalOpen}
                 onClose={() => setIsFollowModalOpen(false)}

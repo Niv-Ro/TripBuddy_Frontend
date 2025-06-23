@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { handleSignOut } from "@/services/auth/SignOut_handle.js";
 import ProfilePage from "@/components/profile/ProfilePage";
 import MapView from "@/components/map/MapView";
 import Chats from "@/components/chat/ChatPage";
@@ -11,7 +10,7 @@ import GroupsPage from "@/components/groups/GroupsPage";
 import GroupView from "@/components/groups/GroupView";
 
 
-const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId}) => (
+const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId,onSignOut}) => (
     <nav
         className="bg-light border-end d-flex flex-column p-3 align-items-center"
         style={{ width: '220px', height: '100vh', flexShrink: 0, position: 'sticky', top: 0 }}
@@ -94,16 +93,27 @@ const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId})
             </div>
         </div>
         <div className="mt-auto">
-            <button className="btn btn-outline-danger w-100" onClick={handleSignOut}>Sign Out</button>
+            <button className="btn btn-outline-danger w-100" onClick={onSignOut}>Sign Out</button>
         </div>
     </nav>
 );
 
 export default function MainScreenPage() {
-    const {mongoUser, loading} = useAuth();
-    const [view, setView] = useState('feed');
+    const {mongoUser, loading,logout} = useAuth();
     const [viewedUserId, setViewedUserId] = useState(null);
     const [viewedGroupId, setViewedGroupId] = useState(null);
+
+    const [view, setView] = useState(() => {
+        // קריאה מה-localStorage יכולה להתבצע רק בצד הלקוח
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('currentView') || 'feed';
+        }
+        return 'feed'; // ערך ברירת מחדל לרינדור בשרת
+    });
+
+    useEffect(() => {
+        localStorage.setItem('currentView', view);
+    }, [view]);
 
     useEffect(() => {
         if (mongoUser && !viewedUserId) {
@@ -207,6 +217,7 @@ export default function MainScreenPage() {
                 navigateToProfile={navigateToProfile}
                 navigateToGroups={navigateToGroups}
                 currentUserId={mongoUser?._id}
+                onSignOut={logout}
             />
             <main className="flex-grow-1" style={{minWidth: 0, overflowY: 'auto'}}>
                 {Content}

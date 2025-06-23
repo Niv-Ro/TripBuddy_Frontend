@@ -30,11 +30,6 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
         setLikes(post.likes || []);
     }, [post]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            require('bootstrap/dist/js/bootstrap.bundle.min.js');
-        }
-    }, []);
 
     // Filter comments based on search term
     const filteredComments = useMemo(() => {
@@ -99,10 +94,17 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
                 <div className="card-header bg-white d-flex align-items-center p-2">
-                    <div onClick={handleProfileClick} className="d-flex align-items-center text-decoration-none text-dark" style={{ cursor: 'pointer' }}>
-                        <img src={post.author.profileImageUrl || 'default-avatar.png'} alt={post.author.fullName} className="post-author-img me-2" />
+                    <div className="d-flex align-items-center text-decoration-none text-dark" style={{ cursor: 'pointer' }}>
+                        <img src={post.author.profileImageUrl || 'default-avatar.png'}
+                             alt={post.author.fullName}
+                             className="post-author-img me-2"
+                             onClick={handleProfileClick}
+                             style={{ cursor: 'pointer' }}
+                        />
                         <div className="d-flex flex-column">
-                            <strong>{post.author.fullName}</strong>
+                            <strong onClick={handleProfileClick}
+                                    style={{ cursor: 'pointer' }}
+                            >{post.author.fullName}</strong>
                             <small className="text-muted">{formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}</small>
                         </div>
                     </div>
@@ -190,8 +192,16 @@ export default function PostCard({ post, onNavigateToProfile, onNavigateToCountr
                             filteredComments.map(comment => (
                                 comment && comment.author && (
                                     <div key={comment._id} className="d-flex mb-2">
-                                        <img src={comment.author.profileImageUrl || 'default-avatar.png'} alt={comment.author.fullName} className="post-author-img me-2" width="25" height="25"/>
-                                        <div className="flex-grow-1">
+                                        <img src={comment.author.profileImageUrl || 'default-avatar.png'}
+                                             alt={comment.author.fullName}
+                                             className="post-author-img me-2"
+                                             width="25"
+                                             height="25"
+                                             onClick={() => handleProfileClick(comment.author._id)}
+                                             style={{ cursor: 'pointer' }}/>
+                                        <div className="flex-grow-1"
+                                             onClick={() => handleProfileClick(comment.author._id)}
+                                             style={{ cursor: 'pointer' }}>
                                             <strong>{comment.author.fullName}</strong>
                                             <p className="mb-0 small">{comment.text}</p>
                                         </div>

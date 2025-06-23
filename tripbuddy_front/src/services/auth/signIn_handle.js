@@ -1,14 +1,20 @@
 import { auth } from '@/services/fireBase.js';
-import {createUserWithEmailAndPassword, signInWithEmailAndPassword} from 'firebase/auth';
-
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export async function handleSignIn(formValues) {
-    // --- State and Hooks ---
-    const { email, password} = formValues;
+    const { email, password } = formValues;
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
-    }catch (err){
-        console.log(err)
+        console.log("User signed in successfully");
+        return true;
+    } catch (error) {
+        //console.error("Sign in failed:", error.code);
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            alert("Incorrect email or password. Please try again.");
+        } else {
+            alert("An unknown error occurred during sign-in.");
+        }
+        return false;
     }
 }
