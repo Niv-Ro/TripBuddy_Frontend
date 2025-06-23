@@ -79,6 +79,20 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
         }
     };
 
+
+    const handleDeleteComment = async (commentId) => {
+        if (!window.confirm('Delete this comment?')) return;
+        try {
+            await axios.delete(`http://localhost:5000/api/posts/${post._id}/comments/${commentId}`, {
+                data: { userId: currentUserMongoId }  // SEND userId for auth!
+            });
+            setComments(prev => prev.filter(c => c._id !== commentId));
+        } catch (error) {
+            alert('Failed to delete comment');
+        }
+    };
+
+
     return (
         <>
             <div className="card post-card shadow-sm mb-4 mx-auto">
@@ -142,11 +156,17 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                         <div className="mt-3">
                             <div className="d-flex flex-wrap align-items-center gap-2">
                                 {taggedCountryObjects.map(country => (
-                                    <span key={country.code} className="badge bg-light text-dark fw-normal border d-flex align-items-center">
+                                    <span key={country.code}
+                                          className="badge bg-light text-dark fw-normal border d-flex align-items-center">
                                         <img
                                             src={country.flag}
                                             alt={country.name}
-                                            style={{ width: '16px', height: '12px', marginRight: '5px', objectFit: 'cover' }}
+                                            style={{
+                                                width: '16px',
+                                                height: '12px',
+                                                marginRight: '5px',
+                                                objectFit: 'cover'
+                                            }}
                                         />
                                         {country.name}
                                     </span>
@@ -159,23 +179,44 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
                     <div className="comments-section">
                         {comments.map(comment => (
                             comment.author && (
-                                <div key={comment._id} className="d-flex mb-2">
-                                    <img
-                                        src={comment.author.profileImageUrl || 'default-avatar.png'}
-                                        alt={comment.author.fullName}
-                                        className="post-author-img me-2"
-                                        style={{ width: '25px', height: '25px', cursor: 'pointer' }}
-                                        onClick={() => onNavigateToProfile && onNavigateToProfile(comment.author._id)}
-                                    />
-                                    <div>
-                                        <strong
-                                            style={{ cursor: 'pointer' }}
+                                <div
+                                    key={comment._id}
+                                    className="d-flex mb-2 align-items-center justify-content-between"
+                                    style={{position: 'relative'}}
+                                >
+                                    <div className="d-flex align-items-center">
+                                        <img
+                                            src={comment.author.profileImageUrl || 'default-avatar.png'}
+                                            alt={comment.author.fullName}
+                                            className="post-author-img me-2"
+                                            style={{width: '25px', height: '25px', cursor: 'pointer'}}
                                             onClick={() => onNavigateToProfile && onNavigateToProfile(comment.author._id)}
-                                        >
-                                            {comment.author.fullName}
-                                        </strong>
-                                        <p className="mb-0 small">{comment.text}</p>
+                                        />
+                                        <div>
+                                            <strong
+                                                style={{cursor: 'pointer'}}
+                                                onClick={() => onNavigateToProfile && onNavigateToProfile(comment.author._id)}
+                                            >
+                                                {comment.author.fullName}
+                                            </strong>
+                                            <p className="mb-0 small">{comment.text}</p>
+                                        </div>
                                     </div>
+                                    {/* X Button: right side, no underline, looks like a clean icon */}
+                                    {(currentUserMongoId === comment.author._id || isOwner) && (
+                                        <button
+                                            className="btn btn-link btn-sm text-danger p-0"
+                                            title="Delete comment"
+                                            onClick={() => handleDeleteComment(comment._id)}
+                                            style={{
+                                                fontSize: '1.2rem',
+                                                textDecoration: 'none', // removes underline
+                                                boxShadow: 'none',
+                                                outline: 'none',
+                                                marginLeft: '10px'
+                                            }}
+                                        >&times;</button>
+                                    )}
                                 </div>
                             )
                         ))}
