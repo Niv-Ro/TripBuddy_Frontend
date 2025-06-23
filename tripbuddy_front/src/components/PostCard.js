@@ -157,15 +157,21 @@ export default function PostCard({ post ,onNavigateToProfile , currentUserMongoI
 
                     <hr/>
                     <div className="comments-section">
+                        {/* ✅ הוספת בדיקה: הצג את התגובה רק אם comment.author קיים */}
                         {comments.map(comment => (
-                            <div key={comment._id} className="d-flex mb-2">
-                                <img src={comment.author.profileImageUrl || '...'} alt={comment.author.fullName}
-                                     className="post-author-img me-2 " width="25" height="25"/>
-                                <div>
-                                    <strong>{comment.author.fullName}</strong>
-                                    <p className="mb-0 small">{comment.text}</p>
+                            comment.author && (
+                                <div key={comment._id} className="d-flex mb-2">
+                                    <img
+                                        src={comment.author.profileImageUrl || 'default-avatar.png'}
+                                        alt={comment.author.fullName}
+                                        className="post-author-img me-2 " width="25" height="25"
+                                    />
+                                    <div>
+                                        <strong>{comment.author.fullName}</strong>
+                                        <p className="mb-0 small">{comment.text}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )
                         ))}
                     </div>
                     <form className="d-flex mt-2" onSubmit={handleCommentSubmit}>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { handleSignOut } from "@/services/auth/SignOut_handle.js";
 import Profile from "@/components/Profile";
@@ -7,10 +7,12 @@ import MapView from "@/components/MapView";
 import Chats from "@/components/Chats";
 import Feed from "@/app/feed/page";
 import UserSearch from "@/components/UserSearch";
+import GroupsPage from "@/components/GroupsPage";
+import GroupView from "@/components/GroupView";
 
 
 // A separate Sidebar component for cleanliness
-const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
+const Sidebar = ({ setView, navigateToProfile, navigateToGroups, currentUserId}) => (
     <nav
         className="bg-light border-end d-flex flex-column p-3 align-items-center"
         style={{ width: '220px', height: '100vh', flexShrink: 0, position: 'sticky', top: 0 }}
@@ -18,20 +20,40 @@ const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
         <div>
             <h2 className="mb-1">Travel Buddy</h2>
             <div className="mt-3 d-flex flex-column align-items-center">
-                <button className="btn mb-2 text-start" onClick={() => navigateToProfile(currentUserId)}>
+
+                <button className="btn mb-2 text-start" onClick={() => setView('feed')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
-                            <circle cx="32" cy="26" r="10" stroke="#555" strokeWidth="3"/>
-                            <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none"
+                            <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3"
+                                  fill="none"/>
+                            <rect x="24" y="26" width="16" height="4" rx="2" fill="#555"/>
+                            <rect x="24" y="32" width="12" height="4" rx="2" fill="#555"/>
+                            <rect x="24" y="38" width="8" height="4" rx="2" fill="#555"/>
+                        </svg>
+                        <span className="mt-1">Feed</span>
+                    </div>
+                </button>
+                <button className="btn mb-2 text-start" onClick={() => navigateToGroups()}>
+                    <div className="d-inline-flex flex-column align-items-center">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+                            <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
+                            <circle cx="32" cy="30" r="7" stroke="#555" strokeWidth="3" fill="none"/>
+                            <path d="M24 45c1-5 15-5 16 0" stroke="#555" strokeWidth="3" fill="none"
+                                  strokeLinecap="round"/>
+                            <circle cx="20" cy="37" r="5" stroke="#555" strokeWidth="2" fill="none"/>
+                            <path d="M14 47c1-4 10-4 11 0" stroke="#555" strokeWidth="2" fill="none"
+                                  strokeLinecap="round"/>
+                            <circle cx="44" cy="37" r="5" stroke="#555" strokeWidth="2" fill="none"/>
+                            <path d="M39 47c1-4 10-4 11 0" stroke="#555" strokeWidth="2" fill="none"
                                   strokeLinecap="round"/>
                         </svg>
-                        <span className="mt-1">My Profile</span>
+                        <span className="mt-1">Travel Groups</span>
                     </div>
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('search')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="29" cy="29" r="10" stroke="#555" strokeWidth="3" fill="none"/>
                             <rect x="37" y="37" width="12" height="4" rx="2" transform="rotate(45 37 37)"
@@ -42,7 +64,7 @@ const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('map')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <circle cx="32" cy="32" r="18" stroke="#555" strokeWidth="3" fill="none"/>
                             <ellipse cx="32" cy="32" rx="18" ry="7" stroke="#555" strokeWidth="2" fill="none"/>
@@ -54,7 +76,7 @@ const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
                 </button>
                 <button className="btn mb-2 text-start" onClick={() => setView('chats')}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
                             <rect x="18" y="22" width="28" height="16" rx="5" stroke="#555" strokeWidth="3"
                                   fill="none"/>
@@ -66,19 +88,18 @@ const Sidebar = ({ setView, navigateToProfile, currentUserId }) => (
                         <span className="mt-1">Chats</span>
                     </div>
                 </button>
-                <button className="btn mb-2 text-start" onClick={() => setView('feed')}>
+                <button className="btn mb-2 text-start" onClick={() => navigateToProfile(currentUserId)}>
                     <div className="d-inline-flex flex-column align-items-center">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
                             <circle cx="32" cy="32" r="30" stroke="#555" strokeWidth="4" fill="#fff"/>
-                            <rect x="20" y="23" width="24" height="21" rx="4" stroke="#555" strokeWidth="3"
-                                  fill="none"/>
-                            <rect x="24" y="26" width="16" height="4" rx="2" fill="#555"/>
-                            <rect x="24" y="32" width="12" height="4" rx="2" fill="#555"/>
-                            <rect x="24" y="38" width="8" height="4" rx="2" fill="#555"/>
+                            <circle cx="32" cy="26" r="10" stroke="#555" strokeWidth="3"/>
+                            <path d="M16 50c2-10 28-10 32 0" stroke="#555" strokeWidth="3" fill="none"
+                                  strokeLinecap="round"/>
                         </svg>
-                        <span className="mt-1">Feed</span>
+                        <span className="mt-1">My Profile</span>
                     </div>
                 </button>
+
             </div>
         </div>
         <div className="mt-auto">
@@ -92,13 +113,15 @@ export default function MainScreenPage() {
     const [view, setView] = useState('feed'); // Start with profile view
     // This state will hold the ID of the profile we want to display
     const [viewedUserId, setViewedUserId] = useState(null);
+    const [viewedCountryCode, setViewedCountryCode] = useState(null)
+
+    const [viewedGroupId, setViewedGroupId] = useState(null);
 
     useEffect(() => {
-        // When the app loads, default to viewing our own profile
-        if (mongoUser) {
+        if (mongoUser && !viewedUserId) {
             setViewedUserId(mongoUser._id);
         }
-    }, [mongoUser]);
+    }, [mongoUser, viewedUserId]);
 
     // This function will be passed down to children components
     const navigateToProfile = (userId) => {
@@ -106,6 +129,23 @@ export default function MainScreenPage() {
             setViewedUserId(userId);
             setView('profile');
         }
+    };
+
+    const navigateToCountry = (countryCode) => {
+        if (countryCode) {
+            setViewedCountryCode(countryCode);
+            setView('country');
+        }
+    };
+
+    const navigateToGroups = () => {
+        setView('groups');
+        setViewedGroupId(null); // אפס את ה-ID כשחוזרים לרשימה
+    };
+
+    const navigateToGroupView = (groupId) => {
+        setViewedGroupId(groupId);
+        setView('group-view');
     };
 
     let Content;
@@ -125,13 +165,19 @@ export default function MainScreenPage() {
         case 'search':
             Content = <UserSearch onNavigateToProfile={navigateToProfile} />;
             break;
+        case 'groups':
+            Content = <GroupsPage onViewGroup={navigateToGroupView} />;
+            break;
+        case 'group-view':
+            Content = <GroupView groupId={viewedGroupId} onBack={navigateToGroups} onNavigateToProfile={navigateToProfile} />;
+            break;
         default:
             Content = <Feed onNavigateToProfile={navigateToProfile} />;
     }
 
     return (
         <div className="d-flex" style={{ height: '100vh', overflow: 'hidden' }}>
-            <Sidebar setView={setView} navigateToProfile={navigateToProfile} currentUserId={mongoUser?._id} />
+            <Sidebar setView={setView} navigateToProfile={navigateToProfile} navigateToGroups={navigateToGroups} currentUserId={mongoUser?._id} />
             <main className="flex-grow-1" style={{minWidth: 0, overflowY: 'auto'}}>
                 {Content}
             </main>

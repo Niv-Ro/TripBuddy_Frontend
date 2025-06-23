@@ -1,7 +1,8 @@
 "use client"
-import React, { useEffect, useState, useCallback } from "react";
+import React, {useEffect, useState, useCallback, useMemo} from "react";
 import axios from "axios";
 import { useAuth } from "@/context/AuthContext";
+import useCountries from "@/hooks/useCountries";
 import CreatePost from "@/components/CreatePost";
 import PostCard from "@/components/PostCard";
 
@@ -10,37 +11,30 @@ export default function Feed({ onNavigateToProfile }) {
     const [allPosts, setAllPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    const [selectedCountry, setSelectedCountry] = useState('all');
+
     const { mongoUser } = useAuth();
+    const allCountries = useCountries();
 
-    // ✅ FIX: הוצאנו את פונקציית fetchPosts מחוץ ל-useEffect
-    // כדי שרכיבים אחרים (כמו useEffect וה-handlers) יוכלו לגשת אליה.
-    // עטפנו אותה ב-useCallback כדי למנוע יצירה מחדש שלה בכל רינדור.
     const fetchPosts = useCallback(() => {
-        if (!mongoUser) return; // אל תביא פוסטים אם המשתמש עדיין לא זוהה
-
+        if (!mongoUser) return;
         setIsLoading(true);
         axios.get(`http://localhost:5000/api/posts/feed/${mongoUser._id}`)
-            .then(res => {
-                setAllPosts(res.data);
-            })
-            .catch(err => {
-                console.error("Failed to fetch posts:", err);
-            })
-            .finally(() => {
-                setIsLoading(false);
-            });
-        // ❌ FIX: הסרנו את הקריאה הרקורסיבית fetchPosts() שהייתה כאן וגרמה ללולאה אינסופית
-    }, [mongoUser]); // התלות היא ב-mongoUser, הפונקציה תיווצר מחדש רק אם הוא משתנה
+            .then(res => { setAllPosts(res.data); })
+            .catch(err => { console.error("Failed to fetch posts:", err); })
+            .finally(() => { setIsLoading(false); });
+    }, [mongoUser]);
 
-    // ✅ FIX: איחדנו את שני ה-useEffect לאחד שאחראי על טעינת הנתונים
     useEffect(() => {
         fetchPosts();
-    }, [fetchPosts]); // קרא ל-fetchPosts כשהרכיב עולה לראשונה, או כשהפונקציה עצמה משתנה (כלומר כש-mongoUser משתנה)
+    }, [fetchPosts]);
+
 
 
     const handlePostCreated = () => {
         setIsCreateModalOpen(false);
-        fetchPosts(); // עכשיו הקריאה הזו תעבוד כי הפונקציה מוצהרת מחוץ ל-useEffect
+        fetchPosts();
     };
 
     const handleUpdatePost = (updatedPost) => {
@@ -61,9 +55,28 @@ export default function Feed({ onNavigateToProfile }) {
         }
     };
 
-    const filteredPosts = allPosts.filter(post =>
-        post.text.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredPosts = useMemo(() => {
+        return allPosts
+            .filter(post => {
+                // שלב 1: סינון לפי מדינה
+                if (selectedCountry === 'all') {
+                    return true; // אם לא נבחרה מדינה, הצג הכל
+                }
+                // בדוק אם קוד המדינה שנבחרה כלול במערך המדינות המתויגות של הפוסט
+                return post.taggedCountries?.includes(selectedCountry);
+            })
+            .filter(post => {
+                // שלב 2: סינון לפי מונח חיפוש (כמו קודם)
+                return post.text.toLowerCase().includes(searchTerm.toLowerCase());
+            });
+    }, [allPosts, selectedCountry, searchTerm]);
+
+    const filterOptions = useMemo(() => {
+        if (!mongoUser || !allCountries.length) return [];
+        return mongoUser.wishlistCountries?.map(code =>
+            allCountries.find(c => c.code3 === code)
+        ).filter(Boolean); // סנן החוצה תוצאות ריקות
+    }, [mongoUser, allCountries]);
 
     return (
         <div className="d-flex flex-column" style={{ height: '100%' }}>
@@ -77,6 +90,20 @@ export default function Feed({ onNavigateToProfile }) {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
+
+                <select
+                    className="form-select w-auto"
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                >
+                    <option value="all">All Wishlist Countries</option>
+                    {filterOptions.map(country => (
+                        <option key={country.code3} value={country.code3}>
+                            {country.name}
+                        </option>
+                    ))}
+                </select>
+
                 <div className="ms-auto">
                     <button className="btn btn-primary" onClick={() => setIsCreateModalOpen(true)}>
                         + New post

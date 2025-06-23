@@ -176,7 +176,7 @@ function MapView() {
             (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
         );
 
-        if (isVisited) return "#f9ff33"; // Opaque yellow
+        if (isVisited) return "rgba(250, 255, 100, 0.4)"; // Opaque yellow
 
         // Check if country is in wishlist (orange) - keep opaque
         const isWishlist = wishlistCountries.some(c =>
@@ -187,7 +187,7 @@ function MapView() {
             (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
         );
 
-        if (isWishlist) return "orange"; // Opaque orange
+        if (isWishlist) return "rgba(255, 165, 0, 0.4)"; // Opaque orange
 
         // Default: not selected (green) - now transparent
         return "rgba(45, 114, 61, 0.3)"; // #2D723D with 30% opacity
@@ -273,10 +273,9 @@ function MapView() {
                     fontSize: '12px',
                     zIndex: 1000
                 }}>
+                    <div className="border-bottom border-info-subtle">Countries</div>
                     <div>Visited: {visitedCountries.length}</div>
                     <div>Wishlist: {wishlistCountries.length}</div>
-                    <div>Countries loaded: {allCountries.length}</div>
-                    <div>Map features: {geoData.features?.length || 0}</div>
                 </div>
             )}
             <Globe
