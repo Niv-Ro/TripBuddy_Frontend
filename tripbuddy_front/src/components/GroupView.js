@@ -22,6 +22,8 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
 
     const fetchGroupData = useCallback(() => {
         if (!groupId) return;
+        // איפוס המצב לפני טעינה מחדש
+        setIsLoading(true);
         const fetchGroupDetails = axios.get(`http://localhost:5000/api/groups/${groupId}`);
         const fetchGroupPosts = axios.get(`http://localhost:5000/api/posts/group/${groupId}`);
 
@@ -50,6 +52,29 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
         fetchGroupData(); // Refresh posts and group data
     };
 
+    // 🔥 הוספת פונקציות למחיקה ועריכה של פוסטים
+    const handleDeletePost = async (postId) => {
+        if (window.confirm("Are you sure you want to delete this post?")) {
+            try {
+                await axios.delete(`http://localhost:5000/api/posts/${postId}`);
+                // הסר את הפוסט מהמצב המקומי כדי שהמחיקה תהיה מיידית
+                setPosts(prevPosts => prevPosts.filter(p => p._id !== postId));
+            } catch (error) {
+                console.error("Failed to delete post", error);
+                alert("Could not delete the post.");
+            }
+        }
+    };
+
+    const handleUpdatePost = (updatedPost) => {
+        // עדכן את הפוסט הספציפי במערך הפוסטים
+        setPosts(prevPosts =>
+            prevPosts.map(p => (p._id === updatedPost._id ? updatedPost : p))
+        );
+    };
+
+
+    // ... שאר הפונקציות (invite, remove, request, respond) נשארות זהות ...
     const handleInviteUser = async (userToInvite) => {
         try {
             await axios.post(`http://localhost:5000/api/groups/${groupId}/invite`, {
@@ -81,7 +106,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
         try {
             await axios.post(`http://localhost:5000/api/groups/${groupId}/request-join`, { userId: mongoUser._id });
             showMessage("Your request to join has been sent.");
-            fetchGroupData(); // Refresh to show pending status
+            fetchGroupData();
         } catch (err) {
             showMessage(err.response?.data?.message || "Failed to send request.");
         }
@@ -99,6 +124,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
             alert('Failed to respond to request.');
         }
     };
+
 
     // --- Derived State ---
     const isMember = group?.members.some(m => m.user?._id === mongoUser?._id && m.status === 'approved');
@@ -137,7 +163,16 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                 <button className="btn btn-success" onClick={() => setIsCreatePostOpen(true)}>+ New Post</button>
                             </div>
                             <hr/>
-                            {posts.length > 0 ? posts.map(post => <PostCard key={post._id} post={post} onNavigateToProfile={onNavigateToProfile} />) : <p>No posts in this group yet.</p>}
+                            {posts.length > 0 ? posts.map(post => (
+                                <PostCard
+                                    key={post._id}
+                                    post={post}
+                                    currentUserMongoId={mongoUser?._id}
+                                    onUpdate={handleUpdatePost}      // 🔥 העברת הפונקציה לעריכה
+                                    onDelete={handleDeletePost}      // 🔥 העברת הפונקציה למחיקה
+                                    onNavigateToProfile={onNavigateToProfile}
+                                />
+                            )) : <p>No posts in this group yet.</p>}
                         </div>
                         <div className="col-md-4">
                             <div className="card">
@@ -162,7 +197,13 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                 <ul className="list-group list-group-flush">
                                     {approvedMembers.map(({ user }) => (
                                         <li key={user?._id} className="list-group-item d-flex justify-content-between align-items-center">
-                                            {user?.fullName || 'User not found'}
+                                            <span>
+                                                {user?.fullName || 'User not found'}
+                                                {/* 🔥 הוספת תג "Admin" ליד שם המנהל */}
+                                                {(user?._id === (group.admin._id || group.admin).toString()) && (
+                                                    <span className="badge bg-primary rounded-pill ms-2">Admin</span>
+                                                )}
+                                            </span>
                                             {isAdmin && user?._id !== (group.admin._id || group.admin).toString() && (
                                                 <button className="btn btn-sm btn-outline-danger" onClick={() => handleRemoveMember(user._id)}>Remove</button>
                                             )}
