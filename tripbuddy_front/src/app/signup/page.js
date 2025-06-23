@@ -10,6 +10,7 @@ export default function SignUpPage() {
     const { setMongoUser } = useContext(AuthContext); //get set function from our context
     const [isRedirecting, setIsRedirecting] = useState(false);
 
+    //processes the registration
     const handleSubmit = async (formValues) => {
         try {
             const newUser = await handleRegister(formValues);
@@ -20,7 +21,6 @@ export default function SignUpPage() {
 
                 // another way to deal with race condition after a new use registration
                 setIsRedirecting(true);
-
 
                 //redirect to homepage, with a small timeout for completing data saving in mongodb
                 setTimeout(() => {

@@ -2,16 +2,22 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../../hooks/useCountries.js';
+import useImageProcessor from '../../hooks/useImageProcessor.js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFileProcessor } from '../../hooks/useFileProcessor.js';
 
 const SignUpForm = ({ onSubmit }) => {
     const router = useRouter();
     const countries = useCountries();
-    const { processFiles, processedFiles, isProcessing } = useFileProcessor();
 
-    const [profileImagePreview, setProfileImagePreview] = useState("");
+    // Use the custom hook for image processing
+    const {
+        isProcessing,
+        processedImage,
+        imagePreview,
+        handleImageChange
+    } = useImageProcessor();
+
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -20,17 +26,10 @@ const SignUpForm = ({ onSubmit }) => {
     const [countryOrigin, setCountryOrigin] = useState("");
     const [gender, setGender] = useState("");
 
-    const handleImageChange = e => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setProfileImagePreview(URL.createObjectURL(file));
-            processFiles([file], { maxWidth: 400, maxHeight: 400, quality: 0.9 });
-        }
-    };
-
+    //Passes all form data, Goes to home page after registration
     const handleSubmit = async e => {
         e.preventDefault();
-        const profileImage = processedFiles.length > 0 ? processedFiles[0] : null;
+        const profileImage = processedImage || null;
         await onSubmit({ fullName, email, password, confirmPassword, birthDate, countryOrigin, gender, profileImage });
         router.push('/');
     };
@@ -38,6 +37,7 @@ const SignUpForm = ({ onSubmit }) => {
     return (
         <div className="text-center">
             <form onSubmit={handleSubmit}>
+                {/* Profile Image Section */}
                 <div className="text-center mb-3">
                     <label htmlFor="profileImage" style={{cursor: 'pointer'}}>
                         <div style={{
@@ -49,7 +49,7 @@ const SignUpForm = ({ onSubmit }) => {
                             position: "relative"
                         }}>
                             <img
-                                src={profileImagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
+                                src={imagePreview || 'https://i1.sndcdn.com/avatars-000437232558-yuo0mv-t240x240.jpg'}
                                 alt="Profile"
                                 width={80}
                                 height={80}
@@ -164,7 +164,7 @@ const SignUpForm = ({ onSubmit }) => {
                 </button>
             </form>
 
-            <Link href="/tripbuddy_front/public" className="btn btn-secondary">
+            <Link href="/" className="btn btn-secondary">
                 Sign In
             </Link>
         </div>

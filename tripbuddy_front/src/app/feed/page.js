@@ -6,7 +6,7 @@ import useCountries from "@/hooks/useCountries";
 import CreatePost from "@/components/post/CreatePost";
 import PostCard from "@/components/post/PostCard";
 
-export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
+export default function Feed({ onNavigateToProfile }) {
     const [allPosts, setAllPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -21,6 +21,7 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
     const { mongoUser } = useAuth();
     const allCountries = useCountries();
 
+    //fetching posts.
     const fetchPosts = useCallback((pageToFetch) => {
         if (!mongoUser?._id) return;
 
@@ -47,15 +48,18 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
             });
     }, [mongoUser?._id]);
 
+    //Resets all data and loads first page of posts when component loads or when user changes.
     useEffect(() => {
-        if (mongoUser?._id) { // טען רק אם המשתמש זוהה
+        if (mongoUser?._id) {
             setAllPosts([]);
             setPage(1);
             setHasMore(true);
             fetchPosts(1);
         }
-    }, [mongoUser?._id]); // הסרנו את התלות ב-fetchPosts כדי למנוע לולאות מיותרות
+    }, [mongoUser?._id]);
 
+
+    //watches when the last post becomes visible and there are more posts, loads next page, this creates infinite scrolling.
     const observer = useRef();
     const lastPostRef = useCallback(node => {
         if (isLoadingMore) return;
@@ -68,12 +72,14 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
         if (node) observer.current.observe(node);
     }, [isLoadingMore, hasMore]);
 
+    //If page number increases, fetch that page
     useEffect(() => {
         if (page > 1) {
             fetchPosts(page);
         }
-    }, [page]); // הפונקציה fetchPosts כבר לא תשתנה לעיתים קרובות
+    }, [page]);
 
+    //when a new post is created, closes the 'create post popup', resets all filters and reloads the feed.
     const handlePostCreated = () => {
         setIsCreateModalOpen(false);
         setSearchTerm('');
@@ -84,12 +90,14 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
         fetchPosts(1);
     };
 
+    //Updates a specific post in the list.
     const handleUpdatePost = (updatedPost) => {
         setAllPosts(prevPosts =>
             prevPosts.map(p => (p._id === updatedPost._id ? updatedPost : p))
         );
     };
 
+    //Makes API call to delete post and removes post from the display list.
     const handleDeletePost = async (postId) => {
         if (window.confirm("Are you sure you want to delete this post?")) {
             try {
@@ -102,6 +110,7 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
         }
     };
 
+    //First filters by selected country, filters by search term, returns the filtered list of posts.
     const filteredPosts = useMemo(() => {
         if (!Array.isArray(allPosts)) return [];
 
@@ -116,9 +125,9 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
             });
     }, [allPosts, selectedCountry, searchTerm]);
 
+    //Gets countries from user's wishlist, these become options in the country filter dropdown
     const filterOptions = useMemo(() => {
         if (!mongoUser || !allCountries.length) return [];
-        // ✅ התיקון: הוספת הגנה למקרה שהשדה לא קיים באובייקט
         return (mongoUser.wishlistCountries || []).map(code =>
             allCountries.find(c => c.code3 === code)
         ).filter(Boolean);
@@ -166,7 +175,6 @@ export default function Feed({ onNavigateToProfile, onNavigateToCountry }) {
                                 onUpdate={handleUpdatePost}
                                 onDelete={handleDeletePost}
                                 onNavigateToProfile={onNavigateToProfile}
-                                onNavigateToCountry={onNavigateToCountry}
                             />
                         );
                         if (filteredPosts.length === index + 1) {

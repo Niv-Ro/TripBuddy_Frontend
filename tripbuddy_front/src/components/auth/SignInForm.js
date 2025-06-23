@@ -4,22 +4,21 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
+//waits for login to complete, if login worked goes to main app page
 const SignInForm = ({ onSubmit }) => {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [isLoading, setIsLoading] = useState(false); // ✅ State לניהול מצב טעינה
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async e => {
+        //prevents refreshing the page
         e.preventDefault();
-        setIsLoading(true); // התחלת טעינה
-
+        setIsLoading(true);
         const success = await onSubmit({ email, password });
-
-        setIsLoading(false); // סיום טעינה
-
+        setIsLoading(false);
         if (success) {
-            router.push('/mainscreen'); // נווט רק בהצלחה
+            router.push('/mainscreen');
         }
     };
 
