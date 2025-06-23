@@ -127,26 +127,30 @@
 
 .modal-overlay {
     position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background-color: rgba(0, 0, 0, 0.6);
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(33, 37, 41, 0.6); /* Standard dark overlay */
+    backdrop-filter: blur(2px); /* Frosted glass effect on the background */
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 1050;
-    backdrop-filter: blur(4px);
 }
 
 .modal-content {
-    background: white;
+    background-color: #ffffff; /* Ensures a solid white background for the entire modal */
+    color: #212529;
+    border: none;
     border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    max-width: 500px; /* Changed from 600px to better fit lists */
     width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
+    max-height: 85vh;
+    display: flex; /* Use flexbox for robust vertical layout */
+    flex-direction: column; /* Stack header/body/footer vertically */
     position: relative;
-    padding: 2rem;
 }
 
 .modal-close-btn {

@@ -1,16 +1,19 @@
-
 'use client';
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 
+// This is a presentational component for displaying statistical graphs.
 const StatsGraphs = ({ statsData, loadingStats }) => {
+    // Refs are used to get a direct reference to the DOM elements where D3 will draw the charts.
     const postsChartRef = useRef(null);
     const commentsChartRef = useRef(null);
 
+    // This is the main function where all the D3 chart-drawing logic resides.
     const createChart = (container, data, title, color = '#007bff') => {
-        // Clear previous chart
+        // Step 1: Cleanup. Always remove the previous chart before drawing a new one to prevent duplicates.
         d3.select(container).selectAll("*").remove();
 
+        // Safety check. If there's no data, display a simple message instead of a broken chart.
         if (!data || data.length === 0) {
             d3.select(container)
                 .append('div')
@@ -22,43 +25,48 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             return;
         }
 
+        // Step 2: Define chart dimensions and margins. This is a standard D3 convention.
         const margin = { top: 30, right: 30, bottom: 50, left: 60 };
         const width = 500 - margin.left - margin.right;
         const height = 300 - margin.top - margin.bottom;
 
+        // Step 3: Create the main SVG element that will contain the chart.
         const svg = d3.select(container)
             .append('svg')
             .attr('width', width + margin.left + margin.right)
             .attr('height', height + margin.top + margin.bottom);
 
+        // Create a group element ('g') and apply margins. The chart will be drawn inside this group.
         const g = svg.append('g')
             .attr('transform', `translate(${margin.left},${margin.top})`);
 
-        // Parse dates manually instead of using d3.timeParse
+        // A simple mapping to ensure data format is consistent.
         const formattedData = data.map((d, index) => ({
             day: d.day,
             count: d.count,
             index: index
         }));
 
-        // Use simple ordinal scale for x-axis (month strings)
+        // Step 4: Define the scales. These are functions that map data values to pixel positions.
+        // `scaleBand` is used for categorical data (like dates) on the x-axis.
         const x = d3.scaleBand()
             .domain(formattedData.map(d => d.day))
             .range([0, width])
             .padding(0.1);
 
+        // `scaleLinear` is used for numerical data (like counts) on the y-axis.
         const y = d3.scaleLinear()
             .domain([0, d3.max(formattedData, d => d.count) || 1])
             .nice()
             .range([height, 0]);
 
-        // Create line generator
+        // Defines a function that knows how to draw a line based on the scaled data points.
         const line = d3.line()
-            .x(d => x(d.day) + x.bandwidth() / 2) // Center of band
+            .x(d => x(d.day) + x.bandwidth() / 2) // Positions the point in the center of the band.
             .y(d => y(d.count))
-            .curve(d3.curveMonotoneX);
+            .curve(d3.curveMonotoneX); // Makes the line smooth and curved.
 
-        // Add axes
+        // Step 5: Draw the axes by calling D3's axis components.
         g.append('g')
             .attr('transform', `translate(0,${height})`)
             .call(d3.axisBottom(x))
@@ -66,32 +74,27 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             .style('text-anchor', 'end')
             .attr('dx', '-.8em')
             .attr('dy', '.15em')
-            .attr('transform', 'rotate(-45)');
+            .attr('transform', 'rotate(-45)'); // Rotates the x-axis labels for readability.
 
         g.append('g')
-            .call(d3.axisLeft(y).ticks(5));
+            .call(d3.axisLeft(y).ticks(5)); // The .ticks(5) suggests about 5 ticks on the y-axis.
 
-        // Add grid lines
+        // Add vertical grid lines for better readability.
         g.append('g')
             .attr('class', 'grid')
             .attr('transform', `translate(0,${height})`)
-            .call(d3.axisBottom(x)
-                .tickSize(-height)
-                .tickFormat('')
-            )
+            .call(d3.axisBottom(x).tickSize(-height).tickFormat(''))
             .style('stroke-dasharray', '3,3')
             .style('opacity', 0.3);
 
+        // Add horizontal grid lines.
         g.append('g')
             .attr('class', 'grid')
-            .call(d3.axisLeft(y)
-                .tickSize(-width)
-                .tickFormat('')
-            )
+            .call(d3.axisLeft(y).tickSize(-width).tickFormat(''))
             .style('stroke-dasharray', '3,3')
             .style('opacity', 0.3);
 
-        // Add the line
+        // Draw the main line path, but only if there is more than one point.
         if (formattedData.length > 1) {
             g.append('path')
                 .datum(formattedData)
@@ -101,7 +104,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
                 .attr('d', line);
         }
 
-        // Add dots
+        // The Data Join: Selects all '.dot' elements, binds data, and appends a 'circle' for each data point.
         g.selectAll('.dot')
             .data(formattedData)
             .enter().append('circle')
@@ -112,8 +115,9 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             .attr('fill', color)
             .attr('stroke', '#fff')
             .attr('stroke-width', 2)
+            // Attach event listeners for the interactive tooltip.
             .on('mouseover', function(event, d) {
-                // Create tooltip
+                // Creates a tooltip div on the fly.
                 const tooltip = d3.select('body').append('div')
                     .attr('class', 'tooltip')
                     .style('position', 'absolute')
@@ -125,19 +129,22 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
                     .style('pointer-events', 'none')
                     .style('opacity', 0);
 
+                // Animate the tooltip's appearance.
                 tooltip.transition().duration(200).style('opacity', .9);
                 tooltip.html(`Day: ${d.day}<br/>Count: ${d.count}`)
                     .style('left', (event.pageX + 10) + 'px')
                     .style('top', (event.pageY - 28) + 'px');
 
+                // Make the hovered dot slightly larger.
                 d3.select(this).attr('r', 7);
             })
             .on('mouseout', function() {
+                // Remove the tooltip and reset the dot size.
                 d3.selectAll('.tooltip').remove();
                 d3.select(this).attr('r', 5);
             });
 
-        // Add title
+        // Appends a text element to serve as the chart's main title.
         svg.append('text')
             .attr('x', (width + margin.left + margin.right) / 2)
             .attr('y', 20)
@@ -147,36 +154,40 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
             .style('fill', '#333')
             .text(title);
 
-        // Add axis labels
+        // Appends a text element for the Y-axis label.
         svg.append('text')
             .attr('transform', 'rotate(-90)')
             .attr('y', 15)
-            .attr('x', 0 - (height + margin.top + margin.bottom) / 2)
+            .attr('x', 0 - (height / 2) - margin.top)
             .style('text-anchor', 'middle')
             .style('font-size', '12px')
             .style('fill', '#666')
             .text('Count');
 
+        // Appends a text element for the X-axis label.
         svg.append('text')
-            .attr('transform', `translate(${(width + margin.left + margin.right) / 2}, ${height + margin.top + margin.bottom - 5})`)
+            .attr('transform', `translate(${(width / 2) + margin.left}, ${height + margin.top + 40})`)
             .style('text-anchor', 'middle')
             .style('font-size', '12px')
             .style('fill', '#666')
             .text('Day');
     };
 
+    // This effect calls createChart for posts data when it becomes available.
     useEffect(() => {
         if (!loadingStats && postsChartRef.current) {
             createChart(postsChartRef.current, statsData.posts, 'Posts Over Time', '#007bff');
         }
     }, [statsData.posts, loadingStats]);
 
+    // This effect does the same for the comments data.
     useEffect(() => {
         if (!loadingStats && commentsChartRef.current) {
             createChart(commentsChartRef.current, statsData.comments, 'Comments Over Time', '#28a745');
         }
     }, [statsData.comments, loadingStats]);
 
+    // Shows a spinner while the parent component (StatsModal) is fetching and processing data.
     if (loadingStats) {
         return (
             <div className="text-center p-4">
@@ -188,6 +199,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
         );
     }
 
+    // The JSX that creates the containers for the charts and summary cards.
     return (
         <div className="row">
             <div className="col-12 mb-4">
@@ -196,6 +208,7 @@ const StatsGraphs = ({ statsData, loadingStats }) => {
                         <h6 className="mb-0">📊 Posts Over Time (Non-Group Posts)</h6>
                     </div>
                     <div className="card-body d-flex justify-content-center">
+                        {/* This div is the container that the ref is attached to. D3 will draw the chart inside it. */}
                         <div ref={postsChartRef}></div>
                     </div>
                 </div>

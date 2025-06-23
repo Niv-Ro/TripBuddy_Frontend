@@ -22,23 +22,24 @@ export default function Feed({ onNavigateToProfile }) {
     const allCountries = useCountries();
 
     //fetching posts.
-    const fetchPosts = useCallback((pageToFetch) => {
+    const fetchPosts = useCallback((pageToFetch, countryFilter) => {
         if (!mongoUser?._id) return;
 
-        if (pageToFetch === 1) {
-            setIsLoading(true);
-        } else {
-            setIsLoadingMore(true);
-        }
+        if (pageToFetch === 1) setIsLoading(true);
+        else setIsLoadingMore(true);
 
+        // ✅ FIX: Pass the country filter as a parameter to the API.
         axios.get(`http://localhost:5000/api/posts/feed/${mongoUser._id}`, {
-            params: { page: pageToFetch, limit: 10 }
+            params: {
+                page: pageToFetch,
+                limit: 10,
+                countryCode: countryFilter
+            }
         })
             .then(res => {
-                // if not the first page, add post for existing array.
-                // if it's first page then override last array
+                // If it's a new search (page 1), replace posts. Otherwise, append them.
                 setAllPosts(prev => pageToFetch === 1 ? res.data.posts : [...prev, ...res.data.posts]);
-                setHasMore(res.data.hasMore); // set response from server if feed has more pages
+                setHasMore(res.data.hasMore);
             })
             .catch(err => {
                 console.error("Failed to fetch posts:", err);
@@ -52,13 +53,14 @@ export default function Feed({ onNavigateToProfile }) {
 
     //Resets all data and loads first page of posts when component loads or when user changes.
     useEffect(() => {
+        // This check prevents running on the initial mount before mongoUser is ready.
         if (mongoUser?._id) {
-            setAllPosts([]);
-            setPage(1);
-            setHasMore(true);
-            fetchPosts(1);
+            setAllPosts([]); // Clear previous results.
+            setPage(1); // Reset to page 1.
+            setHasMore(true); // Assume there are new results to fetch.
+            fetchPosts(1, selectedCountry);
         }
-    }, [mongoUser?._id]);
+    }, [selectedCountry, mongoUser?._id]);
 
 
     // holds the IntersectionObserver instance. Using useRef ensures the instance persists across re-renders without changing them.
@@ -82,7 +84,7 @@ export default function Feed({ onNavigateToProfile }) {
     //If page number increases, fetch that page
     useEffect(() => {
         if (page > 1) {
-            fetchPosts(page);
+            fetchPosts(page, selectedCountry);
         }
     }, [page]);
 

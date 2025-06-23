@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // refetch user data to update it's properties on application after changes
+    // Re-fetch user data to update its properties on application after changes
     const refetchMongoUser = useCallback(async () => {
         if (user?.email)  { //optional chaining, replacing check if user exists and if so, if user email exists, it's shorter term
             const fetchedUser = await fetchUserFromDB(user.email);

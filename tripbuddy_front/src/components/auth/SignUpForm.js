@@ -4,7 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import useCountries from '../../hooks/useCountries.js';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useFileProcessor } from '../../hooks/useFileProcessor.js'; // ✅ שימוש ב-Hook
+import { useFileProcessor } from '@/hooks/useFileProcessor'; // ✅ שימוש ב-Hook
 
 const SignUpForm = ({ onSubmit, isSubmitting }) => { // הוספנו isSubmitting
     const router = useRouter();
