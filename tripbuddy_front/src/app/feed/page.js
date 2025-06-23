@@ -11,7 +11,6 @@ export default function Feed({ onNavigateToProfile }) {
     const [allPosts, setAllPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
     const [selectedCountry, setSelectedCountry] = useState('all');
 
     const { mongoUser } = useAuth();
@@ -30,8 +29,6 @@ export default function Feed({ onNavigateToProfile }) {
         fetchPosts();
     }, [fetchPosts]);
 
-
-
     const handlePostCreated = () => {
         setIsCreateModalOpen(false);
         fetchPosts();
@@ -43,16 +40,10 @@ export default function Feed({ onNavigateToProfile }) {
         );
     };
 
-    const handleDeletePost = async (postId) => {
-        if (window.confirm("Are you sure you want to delete this post?")) {
-            try {
-                await axios.delete(`http://localhost:5000/api/posts/${postId}`);
-                setAllPosts(prevPosts => prevPosts.filter(p => p._id !== postId));
-            } catch (error) {
-                console.error("Failed to delete post", error);
-                alert("Could not delete post.");
-            }
-        }
+    // Simplified delete handler - PostCard now handles Firebase Storage deletion
+    const handleDeletePost = (postId) => {
+        // Just remove from the UI - PostCard already deleted from database and Firebase
+        setAllPosts(prevPosts => prevPosts.filter(p => p._id !== postId));
     };
 
     const filteredPosts = useMemo(() => {

@@ -15,7 +15,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
-    const [isPrivate, setIsPrivate] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchGroupData = useCallback(() => {
         if (groupId) {
@@ -70,7 +70,6 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
         }
     };
 
-    // ✅ פונקציה חדשה לטיפול בהסרת חבר
     const handleRemoveMember = async (memberIdToRemove) => {
         if (!mongoUser || !window.confirm("Are you sure you want to remove this member?")) return;
         try {
@@ -78,13 +77,12 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                 adminId: mongoUser._id,
                 memberToRemoveId: memberIdToRemove
             });
-            fetchGroupData(); // רענן את נתוני הקבוצה
+            fetchGroupData();
         } catch (error) {
             alert(error.response?.data?.message || "Could not remove member.");
         }
     };
 
-    // ✅ פונקציה חדשה למענה לבקשות הצטרפות
     const handleRespondToRequest = async (requesterId, response) => {
         if (!mongoUser) return;
         try {
@@ -93,22 +91,55 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                 requesterId: requesterId,
                 response: response
             });
-            fetchGroupData(); // רענן את נתוני הקבוצה
+            fetchGroupData();
         } catch (error) {
             alert(error.response?.data?.message || "Action failed.");
         }
     };
+
     const handleDeletePost = async (postId) => {
         if (!window.confirm("Delete this post?")) return;
         try {
             await axios.delete(`http://localhost:5000/api/posts/${postId}`);
-            fetchGroupData(); // רענן את הפוסטים
+            fetchGroupData();
         } catch (error) {
             alert('Failed to delete post');
         }
     };
+
+    // ✅ פונקציה חדשה למחיקת הקבוצה
+    const handleDeleteGroup = async () => {
+        if (!mongoUser || !group || !isAdmin) return;
+
+        const confirmMessage = `Are you sure you want to delete "${group.name}"?\n\nThis will:\n• Delete the group permanently\n• Remove all members\n• Delete all posts and their content\n• Delete the group chat and all messages\n\nThis action cannot be undone!`;
+
+        if (!window.confirm(confirmMessage)) return;
+
+        // בקשת אישור נוספת
+        const finalConfirm = window.prompt('Type "DELETE" to confirm group deletion:');
+        if (finalConfirm !== 'DELETE') {
+            alert('Group deletion cancelled.');
+            return;
+        }
+
+        setIsDeleting(true);
+
+        try {
+            await axios.delete(`http://localhost:5000/api/groups/${group._id}`, {
+                data: { adminId: mongoUser._id }
+            });
+
+            alert('Group deleted successfully.');
+            onBack(); // חזור לעמוד הקבוצות
+        } catch (error) {
+            console.error('Error deleting group:', error);
+            alert(error.response?.data?.message || 'Failed to delete group. Please try again.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const approvedMembers = useMemo(() => group?.members.filter(m => m.status === 'approved') || [], [group]);
-    // ✅ Memo חדש לאיתור בקשות הצטרפות
     const pendingJoinRequests = useMemo(() => group?.members.filter(m => m.status === 'pending_approval') || [], [group]);
 
     const isMember = useMemo(() => approvedMembers.some(member => member.user?._id === mongoUser?._id), [approvedMembers, mongoUser]);
@@ -135,9 +166,32 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                     </div>
                 </div>
                 {isAdmin && (
-                    <button className="btn btn-outline-primary" onClick={() => setIsInviting(prev => !prev)}>
-                        {isInviting ? 'Cancel' : 'Invite Member'}
-                    </button>
+                    <div className="d-flex gap-2">
+                        <button
+                            className="btn btn-outline-primary"
+                            onClick={() => setIsInviting(prev => !prev)}
+                            disabled={isDeleting}
+                        >
+                            {isInviting ? 'Cancel' : 'Invite Member'}
+                        </button>
+                        <button
+                            className="btn btn-outline-danger"
+                            onClick={handleDeleteGroup}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    Deleting...
+                                </>
+                            ) : (
+                                <>
+                                    <i className="fas fa-trash me-1"></i>
+                                    Delete Group
+                                </>
+                            )}
+                        </button>
+                    </div>
                 )}
             </nav>
 
@@ -158,7 +212,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                         onNavigateToProfile={onNavigateToProfile}
                                         currentUserMongoId={mongoUser?._id}
                                         onUpdate={fetchGroupData}
-                                        onDelete={handleDeletePost} // שולח פונקציה אמיתית שמוחקת
+                                        onDelete={handleDeletePost}
                                     />
                                 )
                             ) : (
@@ -168,7 +222,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                             )}
                         </div>
                         <div className="col-md-4">
-                            {/* ✅ FIX 2: מיקום חדש לרכיב חיפוש ההזמנות */}
+                            {/* User Search for Invitations */}
                             {isInviting && isAdmin && (
                                 <div className="mb-3">
                                     <UserSearch
@@ -180,7 +234,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                 </div>
                             )}
 
-                            {/* ✅ FIX 3: הצגת בקשות הצטרפות למנהל */}
+                            {/* Pending Join Requests */}
                             {isAdmin && pendingJoinRequests.length > 0 && (
                                 <div className="card mb-3">
                                     <div className="card-header bg-warning">Pending Join Requests</div>
@@ -200,6 +254,7 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                 </div>
                             )}
 
+                            {/* Members List */}
                             <div className="card">
                                 <div className="card-header">{approvedMembers.length} Members</div>
                                 <ul className="list-group list-group-flush">
@@ -208,7 +263,6 @@ export default function GroupView({ groupId, onBack, onNavigateToProfile }) {
                                             <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
                                                 <span>{user.fullName} {group.admin._id === user._id && <span className="badge bg-primary ms-2">Admin</span>}</span>
                                                 {isAdmin && user._id !== group.admin._id && (
-                                                    // ✅ FIX 1: הוספת onClick לכפתור ההסרה
                                                     <button className="btn btn-sm btn-outline-danger py-0" onClick={() => handleRemoveMember(user._id)}>Remove</button>
                                                 )}
                                             </li>
