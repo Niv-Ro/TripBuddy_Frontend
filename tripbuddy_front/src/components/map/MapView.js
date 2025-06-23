@@ -1,14 +1,12 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import Globe from "react-globe.gl";
-import axios from "axios";
-import { useAuth } from "@/context/AuthContext";
 import useCountries from "@/hooks/useCountries";
 
+// URLs for the 3D globe textures.
 const globeImageUrl = "https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg";
-const bumpImageUrl = "https://unpkg.com/three-globe/example/img/earth-topology.png";
 
-
+// A simple presentational component for the map's legend.
 const MapLegend = () => (
     <div style={{
         position: 'absolute', bottom: '20px', left: '20px', backgroundColor: 'rgba(255,255,255,0.9)',
@@ -21,12 +19,8 @@ const MapLegend = () => (
             <span>Wishlist</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
-            <span style={{background:"#f9ff33",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
+            <span style={{background:"#07FF007F",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
             <span>Visited</span>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-            <span style={{background:"#2D723D",display:'inline-block',width:20,height:20,borderRadius:3}}></span>
-            <span>Not Selected</span>
         </div>
         <div style={{fontSize:12,color:'#666'}}>
             <b>Instructions:</b><br/>
@@ -37,215 +31,102 @@ const MapLegend = () => (
     </div>
 );
 
-function MapView() {
-    const { user, mongoUser } = useAuth();
+// Receives its data and a handler function as props from MainScreenPage.
+export default function MapView({ visitedCountries, wishlistCountries, onListsChange }) {
+
+    // Fetches the master list of all countries in the world for data matching.
     const allCountries = useCountries();
-    const [visitedCountries, setVisitedCountries] = useState([]);
-    const [wishlistCountries, setWishlistCountries] = useState([]);
+    // State to hold the geographical data (the country shapes) fetched from API.
     const [geoData, setGeoData] = useState({ features: [] });
+    // Tracks the currently hovered country for the tooltip.
     const [hoveredCountry, setHoveredCountry] = useState(null);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    // A ref to get direct access to the Globe component's instance for advanced commands if needed.
     const globeEl = useRef();
-    const initialLoad = useRef(true);
 
-    // Mouse move handler for tooltip positioning
-    const handleMouseMove = (e) => {
-        setMousePos({ x: e.clientX, y: e.clientY });
-    };
+    // Effect runs only once when the component mounts to fetch the map's geometry.
 
-    // 1. Load map geometry
     useEffect(() => {
         const loadMapData = async () => {
             try {
+                // Fetches a GeoJSON file. GeoJSON is a standard format for encoding geographic data.
                 const response = await fetch("https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson");
                 const world = await response.json();
+                // world holds the raw data from the GeoJSON file.
+                // world.features is an array where each item is a country's data and geometry.
 
+                // Important notes: GeoJSON files, which describes geographic polygons
+                // can come from different sources and sometimes can cause inconsistency in data
+                // In some maps country code is "id" and in others is "ISO_A3" for example
+                // In this effect we will try to make a standard way
+                // We will go over each country in the array, create a copy and make sure that in that copy
+                // there will be 2 keys with constant names we can trust: id (to identify country) and (properties.name) for country name
                 const processedFeatures = world.features.map((feature) => ({
                     ...feature,
                     id: feature.properties.ISO_A3 || feature.id,
-                    properties: {
-                        ...feature.properties,
-                        name: feature.properties.NAME || feature.properties.ADMIN
-                    }
+                    properties: { ...feature.properties, name: feature.properties.NAME || feature.properties.ADMIN }
                 }));
-
-                setGeoData({
-                    type: "FeatureCollection",
-                    features: processedFeatures
-                });
+                // Finally, it updates the component's state with the newly processed and cleaned array of features.
+                setGeoData({ type: "FeatureCollection", features: processedFeatures });
             } catch (err) {
                 console.error("Failed to load map data:", err);
-                setGeoData({ type: "FeatureCollection", features: [] });
             }
         };
-
         loadMapData();
     }, []);
 
-    // 2. Load user data
-    useEffect(() => {
-        if (!user?.email || allCountries.length === 0) return;
+    // Updates the mouse position state whenever the mouse moves over the main div.
+    const handleMouseMove = (e) => setMousePos({ x: e.clientX, y: e.clientY });
 
-        axios.get(`http://localhost:5000/api/users/${user.email}`)
-            .then(res => {
-                const userData = res.data;
-                console.log("User data loaded:", userData);
-
-                if (userData.visitedCountries) {
-                    const visited = allCountries.filter(c =>
-                        userData.visitedCountries.includes(c.code3) ||
-                        userData.visitedCountries.includes(c.ccn3?.toString())
-                    );
-                    setVisitedCountries(visited);
-                }
-
-                if (userData.wishlistCountries) {
-                    const wishlist = allCountries.filter(c =>
-                        userData.wishlistCountries.includes(c.code3) ||
-                        userData.wishlistCountries.includes(c.ccn3?.toString())
-                    );
-                    setWishlistCountries(wishlist);
-                }
-            })
-            .catch(err => console.error("Failed to load user data:", err))
-            .finally(() => {
-                setTimeout(() => initialLoad.current = false, 500);
-            });
-    }, [user?.email, allCountries]);
-
-    // 3. Save to DB on change
-    useEffect(() => {
-        if (initialLoad.current || !mongoUser?._id) return; // שינוי התנאי
-
-        const visitedCca3 = visitedCountries.map(c => c.code3);
-        const wishlistCca3 = wishlistCountries.map(c => c.code3);
-        const visitedCcn3 = visitedCountries.map(c => c.ccn3);
-        const wishlistCcn3 = wishlistCountries.map(c => c.ccn3);
-
-        // ✅ שינוי מ-user.email ל-mongoUser._id
-        axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
-            visited: visitedCca3,
-            wishlist: wishlistCca3,
-            visitedCcn3,
-            wishlistCcn3
-        })
-            .catch(err => console.error("Failed to save country lists:", err));
-    }, [visitedCountries, wishlistCountries, mongoUser?._id]); // עדכון dependencies
-
-    // Improved country name extraction
-    const getCountryName = (feature) => {
+    // A helper function to find our standardized country object using data from a map feature.
+    // A "bridge" between useCountries and GeoJSON to find a country
+    const findCountryFromFeature = (feature) => {
         if (!feature) return null;
-
-        // Try different property names that might contain the country name
-        const name = feature.properties?.name ||
-            feature.properties?.NAME ||
-            feature.properties?.ADMIN ||
-            feature.properties?.name_long ||
-            feature.properties?.NAME_LONG ||
-            feature.properties?.name_en ||
-            feature.properties?.NAME_EN;
-
-        // If we found a name, return it directly
-        if (name) return name;
-
-        // If no name found but we have an ID, try to find a matching country
-        if (feature.id) {
-            const matchedCountry = allCountries.find(c =>
-                c.code3 === feature.id ||
-                c.cca3 === feature.id ||
-                c.ccn3 === feature.id
-            );
-            if (matchedCountry) return matchedCountry.name;
-        }
-
-        // Final fallback
-        return null;
+        // Extracts the ID and name from the map feature. Can be different names like explained above
+        const countryId = feature.id || feature.properties?.ISO_A3;
+        const countryName = feature.properties?.name;
+        return allCountries.find(c =>
+            c.ccn3 === countryId || parseInt(c.ccn3) === parseInt(countryId) ||
+            c.code3 === countryId || (countryName && c.name.toLowerCase() === countryName.toLowerCase())
+        );
     };
 
-    // Determine polygon color based on country status
+    // Called for every country on the globe to determine its color.
     const getPolygonColor = (feature) => {
-        if (!feature) return "rgba(45, 114, 61, 0.3)"; // Transparent version of #2D723D (30% opacity)
+        const country = findCountryFromFeature(feature);
+        if (!country) return "rgba(45, 114, 61, 0.0)"; //There are some "unknown" countries, which our api doesn't support
 
-        const countryId = feature.id || feature.properties?.ISO_A3 || feature.properties?.ADM0_A3;
-        const countryName = getCountryName(feature);
+        if (visitedCountries.some(c => c.code3 === country.code3)) return "rgba(7,255,0,0.5)"; // Green for visited
+        if (wishlistCountries.some(c => c.code3 === country.code3)) return "rgba(255, 165, 0, 0.5)"; // Orange for wishlist
 
-        // Check if country is in visited list (yellow) - keep opaque
-        const isVisited = visitedCountries.some(c =>
-            c.ccn3 === countryId ||
-            parseInt(c.ccn3) === parseInt(countryId) ||
-            c.code3 === countryId ||
-            c.cca3 === countryId ||
-            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
-        );
-
-        if (isVisited) return "rgba(250, 255, 100, 0.5)"; // Opaque yellow
-
-        // Check if country is in wishlist (orange) - keep opaque
-        const isWishlist = wishlistCountries.some(c =>
-            c.ccn3 === countryId ||
-            parseInt(c.ccn3) === parseInt(countryId) ||
-            c.code3 === countryId ||
-            c.cca3 === countryId ||
-            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
-        );
-
-        if (isWishlist) return "rgba(255, 165, 0, 0.5)"; // Opaque orange
-
-        // Default: not selected (green) - now transparent
-        return "rgba(45, 114, 61, 0.3)"; // #2D723D with 30% opacity
+        return "rgba(45, 114, 61, 0.0)"; // Default green
     };
 
-    // Country click logic
+    // The click handler now calculates the new state and calls the parent's handler function.
     const handleCountryClick = (feature) => {
-        if (!feature) return;
+        const clickedCountry = findCountryFromFeature(feature);
+        if (!clickedCountry) return;
 
-        const countryId = feature.id || feature.properties?.ISO_A3 || feature.properties?.ADM0_A3;
-        const countryName = getCountryName(feature);
+        const isInVisited = visitedCountries.some(c => c.code3 === clickedCountry.code3);
+        const isInWishlist = wishlistCountries.some(c => c.code3 === clickedCountry.code3);
 
-        let clickedCountry = allCountries.find(c =>
-            c.ccn3 === countryId ||
-            parseInt(c.ccn3) === parseInt(countryId) ||
-            c.code3 === countryId ||
-            c.cca3 === countryId ||
-            (countryName && c.name?.toLowerCase().includes(countryName.toLowerCase()))
-        );
-
-        if (!clickedCountry) {
-            clickedCountry = {
-                name: countryName || `Country ${countryId}`,
-                code3: countryId,
-                ccn3: countryId,
-                cca3: countryId
-            };
-        }
-
-        const isInVisited = visitedCountries.some(c =>
-            c.ccn3 === clickedCountry.ccn3 ||
-            c.code3 === clickedCountry.code3 ||
-            c.name === clickedCountry.name
-        );
-        const isInWishlist = wishlistCountries.some(c =>
-            c.ccn3 === clickedCountry.ccn3 ||
-            c.code3 === clickedCountry.code3 ||
-            c.name === clickedCountry.name
-        );
+        // Create copies of the current lists to modify them
+        let newVisited = [...visitedCountries];
+        let newWishlist = [...wishlistCountries];
 
         if (isInVisited) {
-            setVisitedCountries(prev => prev.filter(c =>
-                c.ccn3 !== clickedCountry.ccn3 &&
-                c.code3 !== clickedCountry.code3 &&
-                c.name !== clickedCountry.name
-            ));
+            // Stage 3 -> 1: If it's visited, remove it from all lists.
+            newVisited = visitedCountries.filter(c => c.code3 !== clickedCountry.code3);
         } else if (isInWishlist) {
-            setWishlistCountries(prev => prev.filter(c =>
-                c.ccn3 !== clickedCountry.ccn3 &&
-                c.code3 !== clickedCountry.code3 &&
-                c.name !== clickedCountry.name
-            ));
-            setVisitedCountries(prev => [...prev, clickedCountry]);
+            // Stage 2 -> 3: If it's in the wishlist, move it to visited.
+            newWishlist = wishlistCountries.filter(c => c.code3 !== clickedCountry.code3);
+            newVisited.push(clickedCountry);
         } else {
-            setWishlistCountries(prev => [...prev, clickedCountry]);
+            // Stage 1 -> 2: If it's not selected, add it to the wishlist.
+            newWishlist.push(clickedCountry);
         }
+        // Notifies the parent component MainScreenPage of the updated lists to save them.
+        onListsChange(newVisited, newWishlist);
     };
 
     return (
@@ -262,24 +143,17 @@ function MapView() {
             }}
             onMouseMove={handleMouseMove}
         >
-            <MapLegend />
-            {process.env.NODE_ENV === 'development' && (
-                <div style={{
-                    position: 'absolute',
-                    top: '10px',
-                    right: '10px',
-                    background: 'rgba(0,0,0,0.7)',
-                    color: 'white',
-                    padding: '10px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    zIndex: 1000
-                }}>
-                    <div className="border-bottom border-info-subtle">Countries</div>
-                    <div>Visited: {visitedCountries.length}</div>
-                    <div>Wishlist: {wishlistCountries.length}</div>
-                </div>
-            )}
+            <MapLegend/>
+            <div style={{
+                position: 'absolute', top: '10px', right: '10px',
+                background: 'rgba(0,0,0,0.7)', color: 'white', padding: '10px',
+                borderRadius: '4px', fontSize: '12px', zIndex: 1000
+            }}>
+                <div style={{borderBottom: '1px solid #555', paddingBottom: '5px', marginBottom: '5px'}}>Countries</div>
+                <div>Visited: {visitedCountries.length}</div>
+                <div>Wishlist: {wishlistCountries.length}</div>
+            </div>
+            {/* The main Globe component from the `react-globe.gl` library. */}
             <Globe
                 ref={globeEl}
                 width={1200}
@@ -289,23 +163,15 @@ function MapView() {
                 atmosphereColor="rgba(100, 150, 255, 0.4)"
                 atmosphereAltitude={0.35}
                 globeImageUrl={globeImageUrl}
-                polygonsData={geoData.features}
-                polygonCapColor={getPolygonColor}
-                polygonSideColor={() => "rgba(0, 100, 0, 0.15)"}
-                polygonStrokeColor={() => "#111"}
-                onPolygonHover={(polygon) => {
-                    if (polygon) {
-                        console.log("Hovering over:", getCountryName(polygon));
-                    }
-                    setHoveredCountry(polygon);
-                }}
-                onPolygonClick={handleCountryClick}
-                polygonsTransitionDuration={300}
-                enablePointerInteraction={true}
-                waitForGlobeReady={true}
-                animateIn={true}
+                polygonsData={geoData.features} // The data that defines the country shapes.
+                polygonCapColor={getPolygonColor} // The function that sets the color for each country.
+                polygonSideColor={() => "rgba(0, 0, 0, 0)"}
+                polygonStrokeColor={() => "#222"}
+                onPolygonHover={setHoveredCountry} // Sets the state when a user hovers over a country.
+                onPolygonClick={handleCountryClick} // The main click handler.
+                polygonsTransitionDuration={300} // A small animation for color changes.
             />
-
+            {/* Conditionally renders the tooltip next to the mouse when a country is hovered. */}
             {hoveredCountry && (
                 <div
                     style={{
@@ -316,21 +182,13 @@ function MapView() {
                         color: "white",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                         zIndex: 2000,
-                        pointerEvents: "none",
-                        fontFamily: "Arial, sans-serif",
-                        fontSize: "14px",
-                        maxWidth: "200px",
-                        wordWrap: "break-word",
-                        whiteSpace: "nowrap"
+                        pointerEvents: "none"
                     }}
                 >
-                    {getCountryName(hoveredCountry) || "Unknown Country"}
+                    {findCountryFromFeature(hoveredCountry)?.name || "Unknown Country"}
                 </div>
             )}
         </div>
     );
 }
-
-export default MapView;

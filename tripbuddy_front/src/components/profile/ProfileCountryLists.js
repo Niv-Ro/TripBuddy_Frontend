@@ -24,6 +24,7 @@ export default function ProfileCountryLists({
                     isOwnProfile={isOwnProfile}
                     onAddRequest={() => onAddRequest('visited')} //When add country, determines what list it is
                     onRemove={onRemove}  //knows to remove from specific list by it's title
+                    allCountries={allCountries}
                 />
                 <CountryList
                     title="My Wishlist"
@@ -31,6 +32,7 @@ export default function ProfileCountryLists({
                     isOwnProfile={isOwnProfile}
                     onAddRequest={() => onAddRequest('wishlist')}
                     onRemove={onRemove}
+                    allCountries={allCountries}
                 />
             </div>
             {/*Option to add countries conditionally if it is user's profile and add searchbar is available*/}

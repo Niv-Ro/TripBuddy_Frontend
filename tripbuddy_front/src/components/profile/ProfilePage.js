@@ -35,7 +35,7 @@ const ProfileSkeleton = () => (
 
 // This is the main "Container" component for the profile page.
 // It receives the userId to display and a function to navigate to other profiles.
-export default function ProfilePage({ userId, onNavigateToProfile }) {
+export default function ProfilePage({ userId, onNavigateToProfile, visitedCountries, wishlistCountries, onListsChange }) {
 
     // Gets global user data and functions from the authentication context.
     const { mongoUser, refetchMongoUser, user } = useAuth();
@@ -49,9 +49,6 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
     const [userPosts, setUserPosts] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // State for the country lists, which are interactive for the owner.
-    const [visitedCountries, setVisitedCountries] = useState([]);
-    const [wishlistCountries, setWishlistCountries] = useState([]);
 
     // UI state for managing interactions.
 
@@ -113,49 +110,32 @@ export default function ProfilePage({ userId, onNavigateToProfile }) {
         return () => clearTimeout(timer); //Prevent memory leak if object is off the screen
     }, [userId, fetchProfileData]);
 
-    // Processes the country data. It runs only after both the profileData and allCountries list are available.
-    useEffect(() => {
-        if (profileData && !profileData.error && allCountries.length > 0) {
-            setVisitedCountries(profileData.visitedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
-            setWishlistCountries(profileData.wishlistCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || []);
-        }
-    }, [profileData, allCountries]);
-
-    // Auto-saves the country lists to the DB whenever they are changed by the user.
-    useEffect(() => {
-        // Guarded to only run on the user's own profile and after the initial load.
-        if (!isOwnProfile || initialLoad.current || !mongoUser) return;
-
-        axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
-            visited: visitedCountries.map(c => c.code3),
-            wishlist: wishlistCountries.map(c => c.code3),
-            visitedCcn3: visitedCountries.map(c => c.name),
-            wishlistCcn3: wishlistCountries.map(c => c.name),
-        }).catch(err => console.error("Failed to save lists", err));
-
-    }, [visitedCountries, wishlistCountries, isOwnProfile, mongoUser]);
-
 
     // Adds a country to the appropriate list in the local state.
     const handleAddCountry = (country) => {
         if (!isOwnProfile || !addingToList) return;
-        //Checks whether it's visited list or wishlist, we're not using it yet, only deciding state to use
-        const setList = addingToList === 'visited' ? setVisitedCountries : setWishlistCountries;
-        const list = addingToList === 'visited' ? visitedCountries : wishlistCountries;
-        //Prevent multiple adding of a country to a list if it's already in the list
-        if (!list.some(c => c.code === country.code)) {
-            setList(prev => [...prev, country]); //Add the new country for one of the selected lists, decided above.
-            //Will trigger the useEffect to update country lists on DB
+
+        if (addingToList === 'visited') {
+            const newWishlist = wishlistCountries.filter(c => c.code !== country.code);
+            const newVisited = visitedCountries.some(c => c.code === country.code) ? visitedCountries : [...visitedCountries, country];
+            onListsChange(newVisited, newWishlist);
+        } else { // 'wishlist'
+            const newWishlist = wishlistCountries.some(c => c.code === country.code) ? wishlistCountries : [...wishlistCountries, country];
+            onListsChange(visitedCountries, newWishlist);
         }
         setAddingToList(null);
     };
 
-    // Removes a country from the appropriate list in the local state.
     const handleRemoveCountry = (countryCode, listType) => {
         if (!isOwnProfile) return;
-        const setList = listType === 'visited' ? setVisitedCountries : setWishlistCountries;
-        setList(prev => prev.filter(c => c.code !== countryCode));
-        //Will trigger countries change useEffect
+
+        if (listType === 'visited') {
+            const newVisited = visitedCountries.filter(c => c.code !== countryCode);
+            onListsChange(newVisited, wishlistCountries);
+        } else { // 'wishlist'
+            const newWishlist = wishlistCountries.filter(c => c.code !== countryCode);
+            onListsChange(visitedCountries, newWishlist);
+        }
     };
 
     // Deletes a post from the DB and optimistically removes it from the UI, no need to load list again.

@@ -9,14 +9,23 @@ import UserSearch from "@/components/groups/UserSearch";
 import GroupsPage from "@/components/groups/GroupsPage";
 import GroupView from "@/components/groups/GroupView";
 import Sidebar from "./sidebar";
+import useCountries from "@/hooks/useCountries";
+import axios from "axios";
 
 export default function MainScreenPage() {
-    const {mongoUser, loading, logout} = useAuth();
+    const {mongoUser, loading, logout,refetchMongoUser} = useAuth();
     const [viewedUserId, setViewedUserId] = useState(null);
     const [viewedGroupId, setViewedGroupId] = useState(null);
 
-    //Default page will set to feed page
-    const [view, setView] = useState('feed');
+    const allCountries = useCountries();
+    // To pass for relevant pages and maintain only one list to prevent un-necessary server calls
+    const [visitedCountries, setVisitedCountries] = useState([]);
+    const [wishlistCountries, setWishlistCountries] = useState([]);
+
+    //Default page will set to feed page, if not feed, loads the last viewed page
+    const [view, setView] = useState(() => {
+        return localStorage.getItem('currentView') || 'feed';
+    });
 
     //Saves the current page, when user refreshes they stay on the same page, with the help of local storage
     useEffect(() => {
@@ -29,6 +38,32 @@ export default function MainScreenPage() {
             setViewedUserId(mongoUser._id);
         }
     }, [mongoUser, viewedUserId]);
+
+    //When one of the lists has changed, update the local list
+    useEffect(() => {
+        if (mongoUser && allCountries.length > 0) {
+            const visited = mongoUser.visitedCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || [];
+            const wishlist = mongoUser.wishlistCountries?.map(code => allCountries.find(c => c.code3 === code)).filter(Boolean) || [];
+            setVisitedCountries(visited);
+            setWishlistCountries(wishlist);
+        }
+    }, [mongoUser, allCountries]);
+
+    //Saves the new list to the DB
+    const handleCountryListUpdate = async (newVisited, newWishlist) => {
+        if (!mongoUser?._id) return;
+        try {
+            await axios.put(`http://localhost:5000/api/users/${mongoUser._id}/country-lists`, {
+                visited: newVisited.map(c => c.code3),
+                wishlist: newWishlist.map(c => c.code3),
+            });
+            refetchMongoUser();
+        } catch (error) {
+            console.error("Failed to save updated lists", error);
+        }
+    };
+
+
 
     // Navigation handler function passed as a prop to child components.
     // It changes the view to 'profile' and sets the ID of the user to display.
@@ -75,14 +110,24 @@ export default function MainScreenPage() {
             Content = <Feed onNavigateToProfile={navigateToProfile} />;
             break;
         case 'map':
-            Content = <MapView />;
+            Content = <MapView
+                visitedCountries={visitedCountries}
+                wishlistCountries={wishlistCountries}
+                onListsChange={handleCountryListUpdate}/>;
             break;
         case 'chats':
             Content = <Chats />;
             break;
         case 'profile':
-            // whenever the viewedUserId changes, forcing it to re-mount and re-fetch data.
-            Content = viewedUserId ? <ProfilePage key={viewedUserId} userId={viewedUserId} onNavigateToProfile={navigateToProfile} /> : <div>Loading profile...</div>;
+            // whenever the viewedUserId (key) changes, forcing react to re-mount and re-fetch data.
+            Content = viewedUserId ?
+                <ProfilePage
+                                key={viewedUserId}
+                                userId={viewedUserId}
+                                onNavigateToProfile={navigateToProfile}
+                                visitedCountries={visitedCountries}
+                                wishlistCountries={wishlistCountries}
+                                onListsChange={handleCountryListUpdate}/> : <div>Loading profile...</div>;
             break;
         case 'search':
             Content = <UserSearch onUserSelect={navigateToProfile} />;
@@ -91,7 +136,10 @@ export default function MainScreenPage() {
             Content = <GroupsPage onViewGroup={navigateToGroupView} />;
             break;
         case 'group-view':
-            Content = <GroupView key={viewedGroupId} groupId={viewedGroupId} onBack={navigateToGroups} onNavigateToProfile={navigateToProfile} />;
+            Content = <GroupView key={viewedGroupId}
+                                 groupId={viewedGroupId}
+                                 onBack={navigateToGroups}
+                                 onNavigateToProfile={navigateToProfile} />;
             break;
         default:
             Content = <Feed onNavigateToProfile={navigateToProfile} />;
