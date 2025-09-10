@@ -1,4 +1,4 @@
-# TripBuddy Frontend 🗺️
+# TripBuddy Frontend 🌍
 Modern Next.js/React social travel platform with 3D globe visualization, real-time messaging, and interactive features for collaborative trip planning across 195+ countries.
 
 ### 🎯 Impact
