@@ -32,4 +32,6 @@ Spearheaded responsive frontend featuring **3D globe visualization of 195+ count
 - Next.js microservices architecture
 - Firebase integration for real-time features
 
+https://github.com/user-attachments/assets/8d9e2358-156c-4d99-b022-3af23d8882c8
+
 
